@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Prism Phase 0 DNR Probe",
+  "version": "0.1.0",
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "declarative_net_request": {
+    "rule_resources": [
+      {"id": "probe", "enabled": true, "path": "rules.json"}
+    ]
+  }
+}
