@@ -22,22 +22,22 @@ constexpr std::size_t kMaxElements = 200;
 constexpr std::size_t kMaxVisibleTextBytes = 32768;
 constexpr std::size_t kMaxFindMatches = 20;
 
-base::Value::Dict Property(const char* type) {
-  base::Value::Dict property;
+base::DictValue Property(const char* type) {
+  base::DictValue property;
   property.Set("type", type);
   return property;
 }
 
-base::Value::Dict Function(const char* name,
-                           const char* description,
-                           base::Value::Dict properties,
-                           base::Value::List required) {
-  base::Value::Dict parameters;
+base::DictValue Function(const char* name,
+                         const char* description,
+                         base::DictValue properties,
+                         base::ListValue required) {
+  base::DictValue parameters;
   parameters.Set("type", "object");
   parameters.Set("properties", std::move(properties));
   parameters.Set("required", std::move(required));
   parameters.Set("additionalProperties", false);
-  base::Value::Dict function;
+  base::DictValue function;
   function.Set("type", "function");
   function.Set("name", name);
   function.Set("description", description);
@@ -84,8 +84,8 @@ const char* ReasonName(Reason reason) {
   return "unknown";
 }
 
-base::Value::Dict Status(Submission const& submission) {
-  base::Value::Dict result;
+base::DictValue Status(Submission const& submission) {
+  base::DictValue result;
   switch (submission.state) {
     case ActionState::kCompleted:
       result.Set("status", "completed");
@@ -108,14 +108,14 @@ base::Value::Dict Status(Submission const& submission) {
 
 }  // namespace
 
-base::Value::List ChromiumToolCodec::FunctionDefinitions() {
-  base::Value::List functions;
+base::ListValue ChromiumToolCodec::FunctionDefinitions() {
+  base::ListValue functions;
   functions.Append(
       Function("browser_tabs_list", "List tabs in this window.", {}, {}));
   {
-    base::Value::Dict properties;
+    base::DictValue properties;
     properties.Set("url", Property("string"));
-    base::Value::List required;
+    base::ListValue required;
     required.Append("url");
     functions.Append(Function("browser_tabs_open",
                               "Open an HTTP(S) URL after user approval.",
@@ -123,18 +123,18 @@ base::Value::List ChromiumToolCodec::FunctionDefinitions() {
   }
   for (const char* name : {"browser_tabs_close", "browser_tabs_activate",
                            "browser_page_snapshot"}) {
-    base::Value::Dict properties;
+    base::DictValue properties;
     properties.Set("tab_id", Property("integer"));
-    base::Value::List required;
+    base::ListValue required;
     required.Append("tab_id");
     functions.Append(Function(name, "Operate on a tab by session tab ID.",
                               std::move(properties), std::move(required)));
   }
   {
-    base::Value::Dict properties;
+    base::DictValue properties;
     properties.Set("tab_id", Property("integer"));
     properties.Set("query", Property("string"));
-    base::Value::List required;
+    base::ListValue required;
     required.Append("tab_id");
     required.Append("query");
     functions.Append(Function("browser_page_find",
@@ -155,7 +155,7 @@ std::optional<ToolCall> ChromiumToolCodec::Decode(
   if (!parsed || !parsed->is_dict()) {
     return std::nullopt;
   }
-  const base::Value::Dict& arguments = parsed->GetDict();
+  const base::DictValue& arguments = parsed->GetDict();
   std::optional<ToolCall> call;
   if (name == "browser_tabs_list" && arguments.empty()) {
     call = TabsList{};
@@ -195,7 +195,7 @@ std::optional<std::string> ChromiumToolCodec::Serialize(
                             submission.state != ActionState::kFailed)) {
     return std::nullopt;
   }
-  base::Value::Dict result = Status(submission);
+  base::DictValue result = Status(submission);
   if (submission.state != ActionState::kCompleted) {
     return base::WriteJson(base::Value(std::move(result)));
   }
@@ -203,12 +203,12 @@ std::optional<std::string> ChromiumToolCodec::Serialize(
     if (tabs->tabs.size() > kMaxListedTabs) {
       return std::nullopt;
     }
-    base::Value::List listed;
+    base::ListValue listed;
     for (const TabSummary& tab : tabs->tabs) {
       if (tab.id <= 0) {
         return std::nullopt;
       }
-      base::Value::Dict record;
+      base::DictValue record;
       record.Set("id", tab.id);
       record.Set("active", tab.active);
       if (const auto origin = HttpOrigin(tab.origin)) {
@@ -246,14 +246,14 @@ std::optional<std::string> ChromiumToolCodec::Serialize(
     }
     result.Set("visible_text", (*snapshot)->visible_text);
     result.Set("truncated", (*snapshot)->truncated);
-    base::Value::List elements;
+    base::ListValue elements;
     for (const SemanticElement& element : (*snapshot)->elements) {
       if (element.ref.tab_id != (*snapshot)->tab_id ||
           element.ref.snapshot_id != (*snapshot)->snapshot_id ||
           element.role.size() > 128 || element.label.size() > 512) {
         return std::nullopt;
       }
-      base::Value::Dict record;
+      base::DictValue record;
       record.Set("node_id", base::NumberToString(element.ref.node_id));
       record.Set("role", element.role);
       record.Set("label", element.label);
@@ -268,13 +268,13 @@ std::optional<std::string> ChromiumToolCodec::Serialize(
     result.Set("tab_id", found->tab_id);
     result.Set("snapshot_id", base::NumberToString(found->snapshot_id));
     result.Set("truncated", found->truncated);
-    base::Value::List matches;
+    base::ListValue matches;
     for (const PageFindMatch& match : found->matches) {
       if (match.byte_offset > kMaxVisibleTextBytes ||
           match.snippet.size() > 4096) {
         return std::nullopt;
       }
-      base::Value::Dict record;
+      base::DictValue record;
       record.Set("byte_offset", static_cast<int>(match.byte_offset));
       record.Set("snippet", match.snippet);
       matches.Append(std::move(record));

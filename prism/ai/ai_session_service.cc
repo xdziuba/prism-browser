@@ -7,6 +7,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/browser_thread.h"
 #include "prism/ai/chromium_tool_codec.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace prism::ai {
 namespace {

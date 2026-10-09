@@ -59,15 +59,15 @@ class OpenAIResponsesClient {
   void Stop();
 
  private:
-  bool StartRequest(base::Value::List pending_items, Completion completion);
-  void OnLoaded(std::unique_ptr<std::string> body);
+  bool StartRequest(base::ListValue pending_items, Completion completion);
+  void OnLoaded(std::optional<std::string> body);
 
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
   std::unique_ptr<network::SimpleURLLoader> loader_;
   std::string model_;
   std::string api_key_;
-  base::Value::List history_;
-  base::Value::List pending_items_;
+  base::ListValue history_;
+  base::ListValue pending_items_;
   Completion completion_;
   base::WeakPtrFactory<OpenAIResponsesClient> weak_factory_{this};
 };

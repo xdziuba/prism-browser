@@ -190,6 +190,9 @@ void AppendLimited(std::string& output,
 
 }  // namespace
 
+PageContextExtractor::PageContextExtractor() = default;
+PageContextExtractor::~PageContextExtractor() = default;
+
 PageContextSnapshot PageContextExtractor::Extract(
     const PageContextInput& input) {
   PageContextSnapshot output;

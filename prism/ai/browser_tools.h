@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -141,6 +142,9 @@ struct AuditEntry {
 
 class AiActionAuditLog {
  public:
+  AiActionAuditLog();
+  ~AiActionAuditLog();
+
   void Record(std::uint64_t action_id,
               ToolDescriptor tool,
               ActionState state,
@@ -169,6 +173,9 @@ struct PermissionDecision {
 
 class BrowserPermissionBroker {
  public:
+  BrowserPermissionBroker();
+  ~BrowserPermissionBroker();
+
   void BeginTask();
   void StopTask();
   void Grant(Capability capability);
@@ -251,15 +258,16 @@ struct ExecutionTicket {
 };
 
 struct Submission {
-  Submission() = default;
+  Submission();
   Submission(std::uint64_t id,
              ActionState action_state,
              Reason action_reason,
-             ToolOutput tool_output)
-      : action_id(id),
-        state(action_state),
-        reason(action_reason),
-        output(std::move(tool_output)) {}
+             ToolOutput tool_output);
+  Submission(const Submission&);
+  Submission& operator=(const Submission&);
+  Submission(Submission&&);
+  Submission& operator=(Submission&&);
+  ~Submission();
 
   std::uint64_t action_id = 0;
   ActionState state = ActionState::kDenied;
@@ -271,6 +279,7 @@ struct Submission {
 class BrowserToolBroker {
  public:
   BrowserToolBroker(BrowserToolHost& host, AiActionAuditLog& audit);
+  ~BrowserToolBroker();
 
   // Trusted browser UI entry points. None are exposed as AI tool calls.
   bool BeginTask();
@@ -299,8 +308,8 @@ class BrowserToolBroker {
                    ToolDescriptor tool,
                    std::uint64_t generation);
 
-  BrowserToolHost& host_;
-  AiActionAuditLog& audit_;
+  std::reference_wrapper<BrowserToolHost> host_;
+  std::reference_wrapper<AiActionAuditLog> audit_;
   BrowserPermissionBroker permissions_;
   std::mutex mutex_;
   bool task_active_ = false;

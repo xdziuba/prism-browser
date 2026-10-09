@@ -52,6 +52,9 @@ struct PageContextSnapshot {
 
 class PageContextExtractor {
  public:
+  PageContextExtractor();
+  ~PageContextExtractor();
+
   PageContextSnapshot Extract(const PageContextInput& input);
   bool IsCurrent(const ElementRef& ref) const;
   void Invalidate(int tab_id);

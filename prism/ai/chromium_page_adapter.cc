@@ -125,7 +125,7 @@ void ChromiumPageAdapter::RequestPageRead(ExecutionTicket ticket,
   }
   const int navigation_entry_id =
       contents->GetController().GetLastCommittedEntry()->GetUniqueID();
-  ui::AXTreeUpdate empty_update;
+  ::ui::AXTreeUpdate empty_update;
   contents->RequestAXTreeSnapshot(
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(
           base::BindOnce(&ChromiumPageAdapter::OnSnapshot,
@@ -133,7 +133,7 @@ void ChromiumPageAdapter::RequestPageRead(ExecutionTicket ticket,
                          contents->GetWeakPtr(), navigation_entry_id,
                          std::move(completion)),
           base::OwnedRef(std::move(empty_update))),
-      ui::kAXModeWebContentsOnly, kMaxSnapshotNodes, base::Seconds(3),
+      ::ui::kAXModeWebContentsOnly, kMaxSnapshotNodes, base::Seconds(3),
       content::WebContents::AXTreeSnapshotPolicy::kSameOriginDirectDescendants);
 }
 
@@ -142,7 +142,7 @@ void ChromiumPageAdapter::OnSnapshot(
     base::WeakPtr<content::WebContents> contents,
     int navigation_entry_id,
     Completion completion,
-    ui::AXTreeUpdate& update) {
+    ::ui::AXTreeUpdate& update) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (ticket.cancelled->load()) {
     std::move(completion).Run({ExecutionStatus::kCancelled, {}});
@@ -166,7 +166,7 @@ void ChromiumPageAdapter::OnSnapshot(
   tree.origin =
       url::Origin::Create(contents->GetLastCommittedURL()).Serialize();
   tree.nodes.reserve(update.nodes.size());
-  for (const ui::AXNodeData& source : update.nodes) {
+  for (const ::ui::AXNodeData& source : update.nodes) {
     AccessibilityNode node;
     node.id = source.id;
     node.children.assign(source.child_ids.begin(), source.child_ids.end());

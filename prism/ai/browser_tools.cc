@@ -50,6 +50,27 @@ bool OutputMatchesTool(std::size_t tool_index,
 
 }  // namespace
 
+AiActionAuditLog::AiActionAuditLog() = default;
+AiActionAuditLog::~AiActionAuditLog() = default;
+
+BrowserPermissionBroker::BrowserPermissionBroker() = default;
+BrowserPermissionBroker::~BrowserPermissionBroker() = default;
+
+Submission::Submission() = default;
+Submission::Submission(std::uint64_t id,
+                       ActionState action_state,
+                       Reason action_reason,
+                       ToolOutput tool_output)
+    : action_id(id),
+      state(action_state),
+      reason(action_reason),
+      output(std::move(tool_output)) {}
+Submission::Submission(const Submission&) = default;
+Submission& Submission::operator=(const Submission&) = default;
+Submission::Submission(Submission&&) = default;
+Submission& Submission::operator=(Submission&&) = default;
+Submission::~Submission() = default;
+
 ToolDescriptor Describe(const ToolCall& call) {
   return std::visit(
       Overloaded{
@@ -217,6 +238,7 @@ PermissionDecision BrowserPermissionBroker::Evaluate(
 BrowserToolBroker::BrowserToolBroker(BrowserToolHost& host,
                                      AiActionAuditLog& audit)
     : host_(host), audit_(audit) {}
+BrowserToolBroker::~BrowserToolBroker() = default;
 
 bool BrowserToolBroker::BeginTask() {
   std::lock_guard lock(mutex_);
@@ -246,15 +268,16 @@ void BrowserToolBroker::Revoke(Capability capability) {
       ++it;
       continue;
     }
-    audit_.Record(it->first, tool, ActionState::kDenied,
-                  Reason::kCapabilityNotGranted);
+    audit_.get().Record(it->first, tool, ActionState::kDenied,
+                        Reason::kCapabilityNotGranted);
     it = pending_.erase(it);
   }
   for (const auto& [action_id, action] : running_) {
     if (action.tool.capability == capability &&
         !action.cancelled->exchange(true)) {
-      audit_.Record(action_id, action.tool, ActionState::kCancellationRequested,
-                    Reason::kCapabilityNotGranted);
+      audit_.get().Record(action_id, action.tool,
+                          ActionState::kCancellationRequested,
+                          Reason::kCapabilityNotGranted);
     }
   }
 }
@@ -267,40 +290,44 @@ Submission BrowserToolBroker::Submit(ToolCall call) {
     std::lock_guard lock(mutex_);
     action_id = next_action_id_++;
     generation = task_generation_;
-    audit_.Record(action_id, tool, ActionState::kSubmitted, Reason::kNone);
+    audit_.get().Record(action_id, tool, ActionState::kSubmitted,
+                        Reason::kNone);
     if (!task_active_) {
-      audit_.Record(action_id, tool, ActionState::kDenied, Reason::kAiDisabled);
+      audit_.get().Record(action_id, tool, ActionState::kDenied,
+                          Reason::kAiDisabled);
       return {action_id, ActionState::kDenied, Reason::kAiDisabled, {}};
     }
     if (!permissions_.HasGrant(tool.capability)) {
-      audit_.Record(action_id, tool, ActionState::kDenied,
-                    Reason::kCapabilityNotGranted);
+      audit_.get().Record(action_id, tool, ActionState::kDenied,
+                          Reason::kCapabilityNotGranted);
       return {
           action_id, ActionState::kDenied, Reason::kCapabilityNotGranted, {}};
     }
   }
   if (!HasValidArguments(call)) {
-    audit_.Record(action_id, tool, ActionState::kDenied,
-                  Reason::kInvalidTarget);
+    audit_.get().Record(action_id, tool, ActionState::kDenied,
+                        Reason::kInvalidTarget);
     return {action_id, ActionState::kDenied, Reason::kInvalidTarget, {}};
   }
-  const Inspection inspection = host_.Inspect(call);
+  const Inspection inspection = host_.get().Inspect(call);
   {
     std::lock_guard lock(mutex_);
     if (!task_active_ || generation != task_generation_) {
-      audit_.Record(action_id, tool, ActionState::kCancelled, Reason::kStopped);
+      audit_.get().Record(action_id, tool, ActionState::kCancelled,
+                          Reason::kStopped);
       return {action_id, ActionState::kCancelled, Reason::kStopped, {}};
     }
     const PermissionDecision decision =
         permissions_.Evaluate(tool, inspection, false);
     if (decision.approval_required) {
       pending_.emplace(action_id, std::move(call));
-      audit_.Record(action_id, tool, ActionState::kAwaitingApproval,
-                    decision.reason);
+      audit_.get().Record(action_id, tool, ActionState::kAwaitingApproval,
+                          decision.reason);
       return {action_id, ActionState::kAwaitingApproval, decision.reason, {}};
     }
     if (!decision.allowed) {
-      audit_.Record(action_id, tool, ActionState::kDenied, decision.reason);
+      audit_.get().Record(action_id, tool, ActionState::kDenied,
+                          decision.reason);
       return {action_id, ActionState::kDenied, decision.reason, {}};
     }
     return Start(action_id, std::move(call), tool, generation);
@@ -321,17 +348,19 @@ Submission BrowserToolBroker::Approve(std::uint64_t action_id) {
     pending_.erase(it);
   }
   const ToolDescriptor tool = Describe(call);
-  const Inspection inspection = host_.Inspect(call);
+  const Inspection inspection = host_.get().Inspect(call);
   {
     std::lock_guard lock(mutex_);
     if (!task_active_ || generation != task_generation_) {
-      audit_.Record(action_id, tool, ActionState::kCancelled, Reason::kStopped);
+      audit_.get().Record(action_id, tool, ActionState::kCancelled,
+                          Reason::kStopped);
       return {action_id, ActionState::kCancelled, Reason::kStopped, {}};
     }
     const PermissionDecision decision =
         permissions_.Evaluate(tool, inspection, true);
     if (!decision.allowed) {
-      audit_.Record(action_id, tool, ActionState::kDenied, decision.reason);
+      audit_.get().Record(action_id, tool, ActionState::kDenied,
+                          decision.reason);
       return {action_id, ActionState::kDenied, decision.reason, {}};
     }
     return Start(action_id, std::move(call), tool, generation);
@@ -346,7 +375,8 @@ bool BrowserToolBroker::Reject(std::uint64_t action_id) {
   }
   const ToolDescriptor tool = Describe(it->second);
   pending_.erase(it);
-  audit_.Record(action_id, tool, ActionState::kDenied, Reason::kUserRejected);
+  audit_.get().Record(action_id, tool, ActionState::kDenied,
+                      Reason::kUserRejected);
   return true;
 }
 
@@ -356,14 +386,15 @@ void BrowserToolBroker::Stop() {
   ++task_generation_;
   permissions_.StopTask();
   for (const auto& [action_id, call] : pending_) {
-    audit_.Record(action_id, Describe(call), ActionState::kCancelled,
-                  Reason::kStopped);
+    audit_.get().Record(action_id, Describe(call), ActionState::kCancelled,
+                        Reason::kStopped);
   }
   pending_.clear();
   for (const auto& [action_id, action] : running_) {
     if (!action.cancelled->exchange(true)) {
-      audit_.Record(action_id, action.tool, ActionState::kCancellationRequested,
-                    Reason::kStopped);
+      audit_.get().Record(action_id, action.tool,
+                          ActionState::kCancellationRequested,
+                          Reason::kStopped);
     }
   }
 }
@@ -381,7 +412,7 @@ Submission BrowserToolBroker::Start(std::uint64_t action_id,
   }
   running_.emplace(action_id, RunningAction{cancelled, tool, generation,
                                             call.index(), expected_tab_id});
-  audit_.Record(action_id, tool, ActionState::kStarted, Reason::kNone);
+  audit_.get().Record(action_id, tool, ActionState::kStarted, Reason::kNone);
   Submission submission{action_id, ActionState::kStarted, Reason::kNone, {}};
   submission.ticket = ExecutionTicket{action_id, std::move(call), cancelled};
   return submission;
@@ -409,7 +440,7 @@ Submission BrowserToolBroker::Complete(std::uint64_t action_id,
     state = ActionState::kCancelled;
     reason = Reason::kStopped;
   }
-  audit_.Record(action_id, action.tool, state, reason);
+  audit_.get().Record(action_id, action.tool, state, reason);
   if (state != ActionState::kCompleted || stopped) {
     result.output = std::monostate{};
   }

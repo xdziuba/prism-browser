@@ -13,7 +13,7 @@ namespace prism::ai {
 // Browser-process boundary between untrusted model JSON and typed tool calls.
 class ChromiumToolCodec {
  public:
-  static base::Value::List FunctionDefinitions();
+  static base::ListValue FunctionDefinitions();
   static std::optional<ToolCall> Decode(std::string_view name,
                                         std::string_view arguments_json);
   static std::optional<std::string> Serialize(const Submission& submission);

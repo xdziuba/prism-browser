@@ -36,7 +36,7 @@ class ChromiumPageAdapter {
                   base::WeakPtr<content::WebContents> contents,
                   int navigation_entry_id,
                   Completion completion,
-                  ui::AXTreeUpdate& update);
+                  ::ui::AXTreeUpdate& update);
 
   base::WeakPtr<BrowserWindowInterface> browser_;
   PageContextExtractor extractor_;

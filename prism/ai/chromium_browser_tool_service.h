@@ -22,7 +22,7 @@ class ChromiumBrowserToolService : public BrowserToolHost {
 
   explicit ChromiumBrowserToolService(
       base::WeakPtr<BrowserWindowInterface> browser);
-  ~ChromiumBrowserToolService();
+  ~ChromiumBrowserToolService() override;
 
   Inspection Inspect(const ToolCall& call) override;
   void SetCompletionObserver(CompletionObserver completion_observer);

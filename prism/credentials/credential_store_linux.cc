@@ -6,16 +6,15 @@
 #include <libsecret/secret.h>
 
 #include "base/native_library.h"
-#include "base/no_destructor.h"
 
 namespace prism::credentials {
 namespace {
 
 constexpr char kAccount[] = "openai-default";
-const SecretSchema kSchema = {
-    "org.prismbrowser.OpenAI",
-    SECRET_SCHEMA_NONE,
-    {{"account", SECRET_SCHEMA_ATTRIBUTE_STRING}, {nullptr, 0}}};
+const SecretSchema kSchema = {"org.prismbrowser.OpenAI",
+                              SECRET_SCHEMA_NONE,
+                              {{"account", SECRET_SCHEMA_ATTRIBUTE_STRING},
+                               {nullptr, SECRET_SCHEMA_ATTRIBUTE_STRING}}};
 
 struct LibsecretApi {
   LibsecretApi() {
@@ -48,8 +47,8 @@ struct LibsecretApi {
 };
 
 const LibsecretApi& Api() {
-  static const base::NoDestructor<LibsecretApi> api;
-  return *api;
+  static const LibsecretApi api;
+  return api;
 }
 
 bool HasError(GError* error) {

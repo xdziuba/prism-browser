@@ -1,7 +1,8 @@
 # Prism AI WebUI entry point
 
-Status: design for the first browser UI slice, 2026-10-09. The full Chromium
-build and real browser testing remain deferred at the user's request.
+Status: first browser UI slice, 2026-10-09. The Prism GN target compiles in
+the pinned Linux checkout; the full browser build and real browser tests are
+still in progress.
 
 `chrome://prism-ai` is a trusted browser-owned page registered through one
 WebUI config. It creates an `AiSessionService` lazily for its containing

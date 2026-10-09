@@ -23,6 +23,7 @@
 #include "prism/ai/ai_session_service.h"
 #include "prism/credentials/credential_store.h"
 #include "prism/ui/webui/resources.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace prism::ui {
 namespace {
@@ -97,14 +98,14 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   }
 
  private:
-  void HandleReady(const base::Value::List& args) {
+  void HandleReady(const base::ListValue& args) {
     if (!args.empty()) {
       return;
     }
     AllowJavascript();
   }
 
-  void HandleStart(const base::Value::List& args) {
+  void HandleStart(const base::ListValue& args) {
     if (!IsJavascriptAllowed() || args.size() != 3 || !args[0].is_string() ||
         !args[1].is_string() || !args[2].is_bool()) {
       return;
@@ -112,7 +113,7 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     StartSession(args[0].GetString(), args[1].GetString(), args[2].GetBool());
   }
 
-  void HandleStartSaved(const base::Value::List& args) {
+  void HandleStartSaved(const base::ListValue& args) {
     if (!IsJavascriptAllowed() || args.size() != 1 || !args[0].is_string() ||
         session_) {
       return;
@@ -127,7 +128,7 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
                        weak_factory_.GetWeakPtr(), args[0].GetString()));
   }
 
-  void HandleRemoveKey(const base::Value::List& args) {
+  void HandleRemoveKey(const base::ListValue& args) {
     if (!IsJavascriptAllowed() || !args.empty()) {
       return;
     }
@@ -215,19 +216,19 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     }
   }
 
-  void HandleSend(const base::Value::List& args) {
+  void HandleSend(const base::ListValue& args) {
     if (!session_ || args.size() != 1 || !args[0].is_string()) {
       return;
     }
     if (!session_->SendUserMessage(args[0].GetString())) {
-      base::Value::Dict event;
+      base::DictValue event;
       event.Set("kind", "error");
       event.Set("text", "The message could not be sent.");
       FireWebUIListener("prism-event", event);
     }
   }
 
-  void HandleGrant(const base::Value::List& args) {
+  void HandleGrant(const base::ListValue& args) {
     if (!session_ || args.size() != 2 || !args[0].is_string() ||
         !args[1].is_bool()) {
       return;
@@ -244,21 +245,21 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     }
   }
 
-  void HandleApprove(const base::Value::List& args) {
+  void HandleApprove(const base::ListValue& args) {
     const std::optional<std::uint64_t> id = ActionId(args);
     if (session_ && id) {
       session_->Approve(*id);
     }
   }
 
-  void HandleReject(const base::Value::List& args) {
+  void HandleReject(const base::ListValue& args) {
     const std::optional<std::uint64_t> id = ActionId(args);
     if (session_ && id) {
       session_->Reject(*id);
     }
   }
 
-  void HandleStop(const base::Value::List& args) {
+  void HandleStop(const base::ListValue& args) {
     if (!args.empty()) {
       return;
     }
@@ -268,13 +269,13 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     }
   }
 
-  void HandleAudit(const base::Value::List& args) {
+  void HandleAudit(const base::ListValue& args) {
     if (args.empty()) {
       SendAudit();
     }
   }
 
-  std::optional<std::uint64_t> ActionId(const base::Value::List& args) {
+  std::optional<std::uint64_t> ActionId(const base::ListValue& args) {
     if (args.size() != 1 || !args[0].is_string()) {
       return std::nullopt;
     }
@@ -289,7 +290,7 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     if (!IsJavascriptAllowed()) {
       return;
     }
-    base::Value::Dict event;
+    base::DictValue event;
     switch (session_event.kind) {
       case ai::AiSessionEventKind::kAssistantText:
         event.Set("kind", "text");
@@ -331,12 +332,12 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     if (!IsJavascriptAllowed()) {
       return;
     }
-    base::Value::List entries;
+    base::ListValue entries;
     if (session_) {
       const std::vector<ai::AuditEntry> audit = session_->AuditSnapshot();
       const std::size_t start = audit.size() > 100 ? audit.size() - 100 : 0;
       for (std::size_t index = start; index < audit.size(); ++index) {
-        base::Value::Dict entry;
+        base::DictValue entry;
         entry.Set("id", base::NumberToString(audit[index].action_id));
         entry.Set("tool", audit[index].tool_name);
         entry.Set("state", static_cast<int>(audit[index].state));
