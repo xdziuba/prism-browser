@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Prism Phase 0 Persistence Probe",
+  "version": "0.1.0",
+  "description": "Records a value in extension local storage for restart verification.",
+  "permissions": ["storage"],
+  "action": { "default_popup": "popup.html" }
+}

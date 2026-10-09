@@ -1,0 +1,10 @@
+source_set("core") {
+  sources = [
+    "accessibility_context.cc",
+    "accessibility_context.h",
+    "browser_tools.cc",
+    "browser_tools.h",
+    "page_context.cc",
+    "page_context.h",
+  ]
+}

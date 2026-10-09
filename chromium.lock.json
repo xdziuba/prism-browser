@@ -1,0 +1,7 @@
+{
+  "chromium_src": "d5556885f34d231a63b3138269bc245aa6f6a408",
+  "depot_tools": "3de62e5b4fe72ecae5eff72356d0527eccb3b8c0",
+  "pinned_on": "2026-10-09",
+  "source": "https://chromium.googlesource.com/chromium/src.git",
+  "tools_source": "https://chromium.googlesource.com/chromium/tools/depot_tools.git"
+}

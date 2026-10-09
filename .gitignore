@@ -1,0 +1,10 @@
+# Chromium checkouts and outputs stay outside this repository.
+/out/
+/chromium/
+/depot_tools/
+*.log
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!*.example
