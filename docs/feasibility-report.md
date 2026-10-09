@@ -23,7 +23,11 @@ On this host, the Phase 0 bootstrap completed with a shallow Git checkout and DE
 
 No Phase 0 product feasibility gate has passed yet. The source and tools pins were read directly from their official Git remotes on 2026-10-09. The OpenAI probe was not run because `OPENAI_API_KEY` is not set on this host.
 
-The user subsequently authorized isolated feature implementation before the full browser build (ADR 0002). This changes work order, not the gate results above. Browser integration and runtime behavior will remain unverified until the deferred builds and smoke tests run.
+The user subsequently authorized isolated feature implementation before the full browser build (ADR 0002), then authorized resuming the full build on 2026-10-09. This changes work order, not the gate results above. Browser integration and runtime behavior remain unverified until the build and smoke tests pass.
+
+At 15:33 CEST, the Linux `chrome` build started from the pinned checkout with `is_debug=false is_component_build=true symbol_level=0` and `autoninja -j4 -C out/PrismFeasibility chrome`. The user-level systemd service is `prism-build-linux-20261009.service`; its log is `/home/pawel/coding/prism-chromium-work/build-linux.log`. The source and `depot_tools` HEADs matched `chromium.lock.json`, and the overlay and upstream patches were already in place. The build is still in progress, so no binary or browser gate is claimed. `scripts/phase0/browser_smoke.py` is ready to check an ordinary local page and `chrome://prism-ai` with fresh temporary profiles after the binary exists.
+
+The Store candidates are [uBlock Origin Lite](https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh?hl=en), listed at version `2026.1006.1931` on 2026-10-09, and [Dark Reader](https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh?hl=en), listed at `4.9.133`. Their upstream sources identify an MV3 [declarativeNetRequest manifest](https://github.com/gorhill/uBlock/blob/master/platform/mv3/chromium/manifest.json) and an MV3 [content-script manifest](https://github.com/darkreader/darkreader/blob/main/src/manifest-chrome-mv3.json). This only selects candidates; no Store install, behavior, restart, or update has been observed in Prism. The automated `scripts/phase0/extension_persistence.mjs` probe is prepared for the unpacked fixture after the binary exists.
 
 ## Decisions and limitations
 
@@ -31,7 +35,7 @@ The user subsequently authorized isolated feature implementation before the full
 - The pinned checkout now has a one-line Prism dependency in `chrome/browser/BUILD.gn` and two narrow WebUI patches; see `docs/upstream-patches.md`. The AI session and `chrome://prism-ai` page are not yet compiled or run in a Prism binary.
 - This Linux host exceeds the documented minimum memory but is below Chromium's recommended >16 GiB; the first build uses four parallel jobs.
 - A native Windows host and a developer OpenAI API key are independent requirements to close the corresponding gates.
-- The checkout and tools remain under `/home/pawel/coding/prism-chromium-work` for a future build. The generated GN output occupies about 503 MiB after cleanup; no build process remains active.
+- The checkout and tools remain under `/home/pawel/coding/prism-chromium-work`; the Linux build is currently running there. No Chromium binary has yet passed a smoke test.
 
 ## Repository checks
 
