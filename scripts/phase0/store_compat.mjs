@@ -78,6 +78,25 @@ async function enabledRulesets() {
     await page.close();
   }
 }
+async function ublockRedirect() {
+  const page = await context.newPage();
+  try {
+    await page.goto('https://example.com/', {waitUntil: 'domcontentloaded'});
+    const target = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?prism_probe=${Date.now()}`;
+    const replacement = `chrome-extension://${candidates[0].id}/web_accessible_resources/googlesyndication_adsbygoogle.js`;
+    let originalStatus;
+    let replacementStatus;
+    page.on('response', response => {
+      if (response.url() === target) originalStatus = response.status();
+      if (response.url() === replacement) replacementStatus = response.status();
+    });
+    await page.addScriptTag({url: target});
+    await delay(300);
+    return {originalStatus, replacementStatus};
+  } finally {
+    await page.close();
+  }
+}
 
 try {
   context = await openBrowser();
@@ -117,6 +136,10 @@ try {
   if (!rulesets.includes('easylist') || !rulesets.includes('easyprivacy')) {
     throw new Error(`uBlock Origin Lite rulesets were not enabled: ${rulesets}`);
   }
+  const redirected = await ublockRedirect();
+  if (redirected.originalStatus !== 307 || redirected.replacementStatus !== 200) {
+    throw new Error(`uBlock did not redirect the ad script: ${JSON.stringify(redirected)}`);
+  }
   const beforeRestart = await extensions();
   await context.close();
   context = await openBrowser();
@@ -133,8 +156,12 @@ try {
   if (restoredStyle.styles === 0 || restoredStyle.background !== styled.background) {
     throw new Error('Dark Reader styling did not survive restart');
   }
-  console.log('PASS: both Store installs survived restart; Dark Reader styled the page; uBlock rulesets enabled');
-  console.log('uBlock request filtering and a real version update require separate checks.');
+  const restoredRedirect = await ublockRedirect();
+  if (restoredRedirect.originalStatus !== 307 || restoredRedirect.replacementStatus !== 200) {
+    throw new Error(`uBlock filtering did not survive restart: ${JSON.stringify(restoredRedirect)}`);
+  }
+  console.log('PASS: both Store extensions survived restart; Dark Reader styled the page; uBlock redirected an ad script');
+  console.log('A real extension version update requires a separate check.');
 } finally {
   await context?.close();
   rmSync(profile, {recursive: true, force: true});
