@@ -32,6 +32,10 @@ def main() -> int:
 
     patches = sorted((ROOT / "patches" / "chromium").glob("*.patch"))
     for patch in patches:
+        reverse = git(checkout, "apply", "--reverse", "--check", str(patch))
+        if reverse.returncode == 0:
+            print(f"already applied: {patch.name}")
+            continue
         forward = git(checkout, "apply", "--check", str(patch))
         if forward.returncode == 0:
             if args.apply:
@@ -39,10 +43,6 @@ def main() -> int:
                 if applied.returncode != 0:
                     parser.error(f"Failed to apply {patch.name}: {applied.stderr.strip()}")
             print(f"{'applied' if args.apply else 'would apply'}: {patch.name}")
-            continue
-        reverse = git(checkout, "apply", "--reverse", "--check", str(patch))
-        if reverse.returncode == 0:
-            print(f"already applied: {patch.name}")
             continue
         parser.error(f"Patch conflicts with checkout: {patch.name}")
     return 0

@@ -28,7 +28,7 @@ The user subsequently authorized isolated feature implementation before the full
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
-- The pinned checkout now has a thirteen-line source/dependency addition in `chrome/browser/BUILD.gn`; see `docs/upstream-patches.md`. The AI session is not yet compiled or reachable from browser UI.
+- The pinned checkout now has a one-line Prism dependency in `chrome/browser/BUILD.gn` and two narrow WebUI patches; see `docs/upstream-patches.md`. The AI session and `chrome://prism-ai` page are not yet compiled or run in a Prism binary.
 - This Linux host exceeds the documented minimum memory but is below Chromium's recommended >16 GiB; the first build uses four parallel jobs.
 - A native Windows host and a developer OpenAI API key are independent requirements to close the corresponding gates.
 - The checkout and tools remain under `/home/pawel/coding/prism-chromium-work` for a future build. The generated GN output occupies about 503 MiB after cleanup; no build process remains active.
@@ -39,7 +39,7 @@ The user subsequently authorized isolated feature implementation before the full
 - `bash -n` passed for the Linux bootstrap; Python bytecode compilation passed for both Phase 0 Python scripts; JSON parsing passed for the lock and extension manifest; `node --check` passed for the extension popup script.
 - All nine repository skills passed a frontmatter/name check. The bundled `skill-creator` validator could not run because its Python environment lacks `yaml`; its broader validation remains unverified.
 - Windows PowerShell bootstrap syntax and behavior remain untested because PowerShell and a Windows host are unavailable here.
-- After the tab/page adapters, tool codec, Responses client, and session service were staged into the pinned checkout, `gn gen` succeeded with 36,679 targets and `gn check out/PrismFeasibility //chrome/browser:core` passed. This validates target wiring and header dependencies, not C++ compilation.
+- After the tab/page adapters, tool codec, Responses client, session service, OS credential store, and `chrome://prism-ai` WebUI were staged into the pinned checkout, `gn gen` succeeded with 36,683 targets and `gn check` passed for `//prism/ai:chromium`, `//prism/credentials:credentials`, and `//prism/ui/webui:prism_ai_ui`. This validates target wiring and header dependencies, not C++ compilation.
 - The host-only broker and page-context test executables pass with C++20, `-Wall -Wextra -Werror`, and pthreads after the async ticket and typed tab-output changes. `clang-format --dry-run --Werror` passes for the touched C++ files. The GN-integrated Chromium adapter remains uncompiled at the user's request.
 
 No AI key was written to disk. The OpenAI probe reads `OPENAI_API_KEY` only at invocation and requests `store=false`. No browser runtime behavior or performance impact can yet be measured because no Prism binary exists.

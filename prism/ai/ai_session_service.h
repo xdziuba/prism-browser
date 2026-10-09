@@ -22,6 +22,7 @@ namespace prism::ai {
 
 enum class AiSessionEventKind {
   kAssistantText,
+  kToolAction,
   kApprovalRequired,
   kReady,
   kError,

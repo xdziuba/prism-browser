@@ -228,6 +228,11 @@ void AiSessionService::FinishCall(Submission submission) {
     return;
   }
   outputs_.push_back({calls_[next_call_index_].call_id, std::move(*output)});
+  base::WeakPtr<AiSessionService> alive = weak_factory_.GetWeakPtr();
+  Emit({AiSessionEventKind::kToolAction, "", submission.action_id});
+  if (!alive || state_ == State::kStopped) {
+    return;
+  }
   ++next_call_index_;
   waiting_action_id_ = 0;
   current_call_.reset();

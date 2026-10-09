@@ -1,23 +1,13 @@
 diff --git a/chrome/browser/BUILD.gn b/chrome/browser/BUILD.gn
-index a935c57e90..f97bad9a43 100644
+index a935c57e90..ebe527ad07 100644
 --- a/chrome/browser/BUILD.gn
 +++ b/chrome/browser/BUILD.gn
-@@ -1005,2 +1005,14 @@ source_set("core") {
-   sources = [
-+    "//prism/ai/ai_session_service.cc",
-+    "//prism/ai/ai_session_service.h",
-+    "//prism/ai/chromium_browser_tool_service.cc",
-+    "//prism/ai/chromium_browser_tool_service.h",
-+    "//prism/ai/chromium_page_adapter.cc",
-+    "//prism/ai/chromium_page_adapter.h",
-+    "//prism/ai/chromium_tab_adapter.cc",
-+    "//prism/ai/chromium_tab_adapter.h",
-+    "//prism/ai/chromium_tool_codec.cc",
-+    "//prism/ai/chromium_tool_codec.h",
-+    "//prism/ai/openai_responses_client.cc",
-+    "//prism/ai/openai_responses_client.h",
-     "about_flags.cc",
-@@ -1432,2 +1444,3 @@ source_set("core") {
-     "//pdf:features",
-+    "//prism/ai:core",
-     "//services/device/public/cpp:device_features",
+@@ -1446,4 +1446,8 @@ source_set("core") {
+   ]
+ 
++  if (is_linux || is_win) {
++    deps += [ "//prism/ai:chromium" ]
++  }
++
+   if (enable_webui_ntp) {
+     deps += [

@@ -8,3 +8,38 @@ source_set("core") {
     "page_context.h",
   ]
 }
+
+source_set("chromium") {
+  sources = [
+    "ai_session_service.cc",
+    "ai_session_service.h",
+    "chromium_browser_tool_service.cc",
+    "chromium_browser_tool_service.h",
+    "chromium_page_adapter.cc",
+    "chromium_page_adapter.h",
+    "chromium_tab_adapter.cc",
+    "chromium_tab_adapter.h",
+    "chromium_tool_codec.cc",
+    "chromium_tool_codec.h",
+    "openai_responses_client.cc",
+    "openai_responses_client.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":core",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/tabs:tab_enums",
+    "//chrome/browser/ui/tabs:tab_strip",
+    "//components/sessions",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//net/traffic_annotation",
+    "//services/network/public/cpp",
+    "//services/network/public/cpp:cpp_base",
+    "//services/network/public/mojom:url_loader_base",
+    "//ui/accessibility:ax_base",
+    "//ui/base:types",
+    "//url",
+  ]
+}

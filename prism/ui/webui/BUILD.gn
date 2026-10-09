@@ -1,0 +1,15 @@
+source_set("prism_ai_ui") {
+  sources = [
+    "prism_ai_ui.cc",
+    "prism_ai_ui.h",
+    "resources.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/browser_window",
+    "//content/public/browser",
+    "//prism/ai:chromium",
+    "//prism/credentials",
+  ]
+}
