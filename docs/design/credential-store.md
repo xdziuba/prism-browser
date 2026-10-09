@@ -1,9 +1,9 @@
 # OpenAI credential storage
 
 Status: Linux and Windows source implementations wired into the trusted WebUI,
-2026-10-09. The Linux source now compiles in the pinned Chromium target after
-fixing its schema terminator and static loader holder. Neither platform has
-been tested against an OS vault; Windows compilation is still outstanding.
+2026-10-09. The Linux source compiles and links in the pinned Chromium browser
+after fixing its schema terminator and static loader holder. Neither platform
+has been tested against an OS vault; Windows compilation is still outstanding.
 
 The browser keeps the API key in memory for a running AI task. Persistent
 storage uses an operating-system credential vault: Secret Service through

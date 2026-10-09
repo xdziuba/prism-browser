@@ -34,26 +34,29 @@ async function openBrowser() {
   return chromium.launchPersistentContext(profile, {
     executablePath: binary,
     headless: true,
+    ignoreDefaultArgs: ['--disable-extensions'],
     args,
   });
 }
 
 async function extensionId() {
-  const preferences = join(profile, 'Default', 'Preferences');
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (existsSync(preferences)) {
-      try {
-        const settings = JSON.parse(readFileSync(preferences, 'utf8')).extensions?.settings ?? {};
-        const match = Object.entries(settings).find(([, info]) =>
-          info.manifest?.name === 'Prism Phase 0 Persistence Probe');
-        if (match) return match[0];
-      } catch (error) {
-        if (!(error instanceof SyntaxError)) throw error;
-      }
+  const page = await context.newPage();
+  try {
+    await page.goto('chrome://extensions/');
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const id = await page.evaluate(async () => {
+        const extensions = await chrome.developerPrivate.getExtensionsInfo();
+        const fixture = extensions.find(info =>
+          info.name === 'Prism Phase 0 Persistence Probe' && info.state === 'ENABLED');
+        return fixture?.id ?? null;
+      });
+      if (id) return id;
+      await delay(100);
     }
-    await delay(100);
+  } finally {
+    await page.close();
   }
-  throw new Error('Unpacked extension was not found in the temporary profile');
+  throw new Error('Unpacked extension was not enabled in the temporary profile');
 }
 
 async function popupValue(id) {

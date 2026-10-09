@@ -10,6 +10,7 @@
 #include "base/environment.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -27,6 +28,19 @@
 
 namespace prism::ui {
 namespace {
+
+bool HasPrismResource(const std::string& path) {
+  return path.empty() || path == "app.css" || path == "app.js";
+}
+
+void ServePrismResource(const std::string& path,
+                        content::WebUIDataSource::GotDataCallback completion) {
+  const char* response = path.empty()        ? kPrismAiHtml
+                         : path == "app.css" ? kPrismAiCss
+                                             : kPrismAiJs;
+  std::move(completion)
+      .Run(base::MakeRefCounted<base::RefCountedString>(std::string(response)));
+}
 
 std::optional<ai::Capability> CapabilityFromName(const std::string& name) {
   if (name == "read") {
@@ -357,9 +371,8 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
 PrismAiUI::PrismAiUI(content::WebUI* web_ui) : WebUIController(web_ui) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), kPrismAiHost);
-  source->SetResourcePathToResponse("", kPrismAiHtml);
-  source->SetResourcePathToResponse("app.css", kPrismAiCss);
-  source->SetResourcePathToResponse("app.js", kPrismAiJs);
+  source->SetRequestFilter(base::BindRepeating(&HasPrismResource),
+                           base::BindRepeating(&ServePrismResource));
   web_ui->AddMessageHandler(std::make_unique<PrismAiMessageHandler>());
 }
 

@@ -76,10 +76,20 @@ def main() -> int:
             raise RuntimeError("Ordinary page marker missing from browser DOM")
         print("PASS: ordinary page loaded")
 
-        internal = run_browser(binary, root / "internal-profile", "chrome://prism-ai/")
-        if "<title>Prism AI</title>" not in internal or 'id="setup-title"' not in internal:
-            raise RuntimeError("Prism internal page marker missing from browser DOM")
-        print("PASS: chrome://prism-ai loaded")
+        webui_test = Path(__file__).with_name("webui_smoke.mjs")
+        internal = subprocess.run(
+            ["node", str(webui_test), str(binary)],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+        if internal.returncode:
+            raise RuntimeError(
+                "Prism WebUI smoke failed; run npm ci --ignore-scripts first. "
+                + internal.stderr[-1200:]
+            )
+        print(internal.stdout.strip())
 
     return 0
 
