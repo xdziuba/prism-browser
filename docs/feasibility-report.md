@@ -40,6 +40,12 @@ Starting the built browser with `--auto-open-devtools-for-tabs` produced `devtoo
 
 The Xvfb `21.1.25-1.1` package was downloaded from the configured CachyOS repository, matched its repository SHA-256 (`c434cbce97ad397a8a9a14a42f33fc8ded1a01db10f5749411dcc00d7519fbc1`), and extracted only into the external work directory. The test display was started with `/home/pawel/coding/prism-chromium-work/tools/xvfb/usr/bin/Xvfb :100 -screen 0 1600x1200x24 -nolisten tcp -ac`; it did not use or capture the user's desktop. `DISPLAY=:100 node scripts/phase0/extension_ui_install.mjs <built chrome>` passed using the native GTK folder chooser. The fixture's storage UUID survived restart without load flags. The test scripts create and delete temporary browser profiles.
 
+## Isolated Phase 1 progress under ADR 0002
+
+The AI WebUI now has a `#settings` view, shared Assistant/Settings navigation, a saved default model ID, and an OS-vault key removal control. Only the bounded model ID is stored in WebUI `localStorage`; the key stays in the existing OS-vault path and is not stored by the settings view. Light/dark UI tokens cover text, surfaces, borders, accent, focus, approval, errors, and the glass header. The header is solid when backdrop blur is absent or reduced transparency is requested. See `docs/design/product-shell-settings.md`. No upstream Chromium file changed for this slice.
+
+After staging the updated Prism-owned `resources.h`, `autoninja -j4 -C out/PrismFeasibility prism/ui/webui:prism_ai_ui chrome` succeeded in 12 seconds with one C++ compile and one relink. `DISPLAY=:100 node scripts/phase0/settings_smoke.mjs <built chrome>` passed for navigation, model persistence across restart, a local-storage inventory containing only `prism.defaultModel`, and no horizontal overflow in a 420-pixel dark viewport. `python3 scripts/phase0/browser_smoke.py <built chrome>` still passed for an ordinary page and `chrome://prism-ai/` with no asset or page errors. See `docs/evidence/phase1-ai-settings-linux-20261010.png` and `docs/evidence/phase1-ai-settings-narrow-dark-linux-20261010.png`. Actual OS-vault removal, OpenAI interaction, Windows rendering, native browser chrome branding, and side-panel integration remain unverified or unimplemented.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
