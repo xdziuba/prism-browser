@@ -1,0 +1,142 @@
+diff --git a/chrome/browser/ui/actions/chrome_action_id.h b/chrome/browser/ui/actions/chrome_action_id.h
+index b1ba8e8be0..85b4d1e2ef 100644
+--- a/chrome/browser/ui/actions/chrome_action_id.h
++++ b/chrome/browser/ui/actions/chrome_action_id.h
+@@ -523,7 +523,8 @@
+   E(kActionSidePanelShowSearchCompanion) \
+   E(kActionSidePanelShowShoppingInsights) \
+   E(kActionSidePanelShowSideSearch) \
+-  E(kActionSidePanelShowMerchantTrust)
++  E(kActionSidePanelShowMerchantTrust) \
++  E(kActionSidePanelShowPrismAi)
+ 
+ #define TOOLBAR_PINNABLE_ACTION_IDS \
+   E(kActionHome, IDC_HOME) \
+diff --git a/chrome/browser/ui/browser_actions.cc b/chrome/browser/ui/browser_actions.cc
+index b657d04fb7..8d25a10570 100644
+--- a/chrome/browser/ui/browser_actions.cc
++++ b/chrome/browser/ui/browser_actions.cc
+@@ -430,6 +430,22 @@ void BrowserActions::InitializeSidePanelActions() {
+   Profile* const profile = base::to_address(profile_);
+   BrowserWindowInterface* const bwi = base::to_address(bwi_);
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  root_action_item_->AddChild(
++      actions::ActionItem::Builder(CreateToggleSidePanelActionCallback(
++                                       SidePanelEntryKey(SidePanelEntryId::kPrismAi),
++                                       bwi))
++          .SetActionId(kActionSidePanelShowPrismAi)
++          .SetText(u"Prism AI")
++          .SetTooltipText(u"Prism AI")
++          .SetImage(ui::ImageModel::FromVectorIcon(
++              vector_icons::kChatSparkIcon, ui::kColorIcon))
++          .SetProperty(actions::kActionItemPinnableKey,
++                       std::underlying_type_t<actions::ActionPinnableState>(
++                           actions::ActionPinnableState::kPinnable))
++          .Build());
++#endif
++
+   root_action_item_->AddChild(
+       SidePanelAction(SidePanelEntryId::kBookmarks, IDS_BOOKMARK_MANAGER_TITLE,
+                       IDS_BOOKMARK_MANAGER_TITLE,
+diff --git a/chrome/browser/ui/side_panel/side_panel_entry_id.h b/chrome/browser/ui/side_panel/side_panel_entry_id.h
+index 534627028f..5494d9ac13 100644
+--- a/chrome/browser/ui/side_panel/side_panel_entry_id.h
++++ b/chrome/browser/ui/side_panel/side_panel_entry_id.h
+@@ -26,6 +26,7 @@
+   V(kFeed, kActionSidePanelShowFeed, "Feed")                                  \
+   V(kWebView, std::nullopt, "WebView")                                        \
+   V(kContextualTasks, kActionSidePanelShowContextualTasks, "ContextualTasks") \
++  V(kPrismAi, kActionSidePanelShowPrismAi, "PrismAi")                     \
+   /* Contextual Entries */                                                    \
+   V(kSideSearch, kActionSidePanelShowSideSearch, "SideSearch")                \
+   V(kLens, kActionSidePanelShowLens, "Lens")                                  \
+diff --git a/chrome/browser/ui/views/side_panel/BUILD.gn b/chrome/browser/ui/views/side_panel/BUILD.gn
+index 412d15f6ef..ae9d079654 100644
+--- a/chrome/browser/ui/views/side_panel/BUILD.gn
++++ b/chrome/browser/ui/views/side_panel/BUILD.gn
+@@ -50,6 +50,12 @@ source_set("side_panel") {
+     "side_panel_web_ui_view.cc",
+     "side_panel_web_ui_view.h",
+   ]
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/side_panel/prism_side_panel.cc",
++      "//prism/ui/side_panel/prism_side_panel.h",
++    ]
++  }
+   public_deps = [
+     "//base",
+     "//chrome/browser:browser_public_dependencies",
+@@ -175,6 +181,10 @@ source_set("side_panel") {
+     "//ui/webui",
+   ]
+ 
++  if (is_linux || is_win) {
++    deps += [ "//prism/ui/webui:prism_ai_ui" ]
++  }
++
+   if (enable_extensions_core) {
+     public_deps += [
+       "//extensions/browser",
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_helper.cc b/chrome/browser/ui/views/side_panel/side_panel_helper.cc
+index e10a33f87f..6c3260857c 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_helper.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_helper.cc
+@@ -21,6 +21,9 @@
+ #include "components/history_clusters/core/features.h"
+ #include "components/history_clusters/core/history_clusters_service.h"
+ #include "ui/actions/actions.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/side_panel/prism_side_panel.h"
++#endif
+ 
+ // static
+ void SidePanelHelper::PopulateGlobalEntries(
+@@ -34,6 +37,10 @@ void SidePanelHelper::PopulateGlobalEntries(
+   BookmarksSidePanelCoordinator::From(browser)->CreateAndRegisterEntry(
+       window_registry);
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  prism::ui::RegisterPrismAiSidePanel(browser, window_registry);
++#endif
++
+   if (webui_browser::IsWebUIBrowserEnabled()) {
+     // TODO(webium): Consider supporting additional side panels beyond reading
+     // list and bookmarks.
+diff --git a/tools/metrics/histograms/metadata/browser/histograms.xml b/tools/metrics/histograms/metadata/browser/histograms.xml
+index 2abe011527..d03338da42 100644
+--- a/tools/metrics/histograms/metadata/browser/histograms.xml
++++ b/tools/metrics/histograms/metadata/browser/histograms.xml
+@@ -76,6 +76,7 @@ chromium-metrics-reviews@google.com.
+   <variant name="LensOverlayResults" summary="lens overlay results"/>
+   <variant name="MerchantTrust" summary="merchant trust"/>
+   <variant name="Performance" summary="performance"/>
++  <variant name="PrismAi" summary="Prism AI"/>
+   <variant name="ReadAnything" summary="read anything"/>
+   <variant name="ReadingList" summary="reading list"/>
+   <variant name="ShoppingInsights" summary="shopping insights"/>
+diff --git a/tools/metrics/histograms/metadata/page/histograms.xml b/tools/metrics/histograms/metadata/page/histograms.xml
+index d45c65de9a..0704453433 100644
+--- a/tools/metrics/histograms/metadata/page/histograms.xml
++++ b/tools/metrics/histograms/metadata/page/histograms.xml
+@@ -1095,6 +1095,7 @@ chromium-metrics-reviews@google.com.
+   <variant name=".OmniboxEverywhere"/>
+   <variant name=".OmniboxPopup"/>
+   <variant name=".PerformanceSidePanel"/>
++  <variant name=".PrismAiPanel"/>
+   <variant name=".ReadAnythingUntrusted"/>
+   <variant name=".ReadingList"/>
+   <variant name=".ReloadButtonUI"/>
+diff --git a/tools/metrics/histograms/metadata/ui/histograms.xml b/tools/metrics/histograms/metadata/ui/histograms.xml
+index 1837d9c547..6ddf3e05b5 100644
+--- a/tools/metrics/histograms/metadata/ui/histograms.xml
++++ b/tools/metrics/histograms/metadata/ui/histograms.xml
+@@ -163,6 +163,7 @@ chromium-metrics-reviews@google.com.
+   <variant name=".OmniboxEverywhere"/>
+   <variant name=".OmniboxPopup"/>
+   <variant name=".PerformanceSidePanel"/>
++  <variant name=".PrismAiPanel"/>
+   <variant name=".ReadAnythingUntrusted"/>
+   <variant name=".ReadingList"/>
+   <variant name=".ReloadButtonUI"/>

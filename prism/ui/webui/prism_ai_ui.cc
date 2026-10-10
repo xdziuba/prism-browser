@@ -18,6 +18,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
@@ -65,10 +67,23 @@ std::string ApprovalDetails(const ai::ToolCall& call) {
   return std::string("Allow once: ") + ai::Describe(call).name;
 }
 
+}  // namespace
+
 class PrismAiMessageHandler : public content::WebUIMessageHandler {
  public:
   PrismAiMessageHandler() = default;
   ~PrismAiMessageHandler() override = default;
+
+  base::WeakPtr<PrismAiMessageHandler> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+  void StopForPanelHide() {
+    if (session_) {
+      session_->Stop();
+      session_.reset();
+    }
+  }
 
   void RegisterMessages() override {
     web_ui()->RegisterMessageCallback(
@@ -104,6 +119,10 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     web_ui()->RegisterMessageCallback(
         "prismAudit", base::BindRepeating(&PrismAiMessageHandler::HandleAudit,
                                           base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "prismOpenPanel",
+        base::BindRepeating(&PrismAiMessageHandler::HandleOpenPanel,
+                            base::Unretained(this)));
   }
 
   void OnJavascriptDisallowed() override {
@@ -112,11 +131,40 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   }
 
  private:
+  void HandleOpenPanel(const base::ListValue& args) {
+    if (!IsJavascriptAllowed() || !args.empty() ||
+        web_ui()->GetController()->GetAs<PrismAiPanelUI>()) {
+      return;
+    }
+    Profile* profile = Profile::FromWebUI(web_ui());
+    auto* collection = GlobalBrowserCollection::GetInstance();
+    BrowserWindowInterface* browser =
+        collection ? collection->FindBrowserWithTab(web_ui()->GetWebContents())
+                   : nullptr;
+    if (!profile || profile->IsOffTheRecord() || !browser ||
+        browser->GetProfile() != profile || browser->IsDeleteScheduled()) {
+      return;
+    }
+    if (SidePanelUI* panel = SidePanelUI::From(browser)) {
+      const SidePanelEntryKey key(SidePanelEntryId::kPrismAi);
+      if (panel->IsSidePanelEntryShowing(key)) {
+        panel->Close();
+      } else {
+        panel->Show(SidePanelEntryId::kPrismAi);
+      }
+    }
+  }
+
   void HandleReady(const base::ListValue& args) {
     if (!args.empty()) {
       return;
     }
     AllowJavascript();
+    if (auto* panel = web_ui()->GetController()->GetAs<PrismAiPanelUI>()) {
+      if (panel->embedder()) {
+        panel->embedder()->ShowUI();
+      }
+    }
   }
 
   void HandleStart(const base::ListValue& args) {
@@ -204,8 +252,10 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     Profile* profile = Profile::FromWebUI(web_ui());
     auto* collection = GlobalBrowserCollection::GetInstance();
     BrowserWindowInterface* browser =
-        collection ? collection->FindBrowserWithTab(web_ui()->GetWebContents())
-                   : nullptr;
+        webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+    if (!browser && collection) {
+      browser = collection->FindBrowserWithTab(web_ui()->GetWebContents());
+    }
     if (!profile || profile->IsOffTheRecord() || !browser ||
         browser->GetProfile() != profile || browser->IsDeleteScheduled()) {
       FireWebUIListener("prism-started", false);
@@ -277,10 +327,7 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     if (!args.empty()) {
       return;
     }
-    if (session_) {
-      session_->Stop();
-      session_.reset();
-    }
+    StopForPanelHide();
   }
 
   void HandleAudit(const base::ListValue& args) {
@@ -366,16 +413,40 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   base::WeakPtrFactory<PrismAiMessageHandler> weak_factory_{this};
 };
 
-}  // namespace
-
-PrismAiUI::PrismAiUI(content::WebUI* web_ui) : WebUIController(web_ui) {
-  content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
-      Profile::FromWebUI(web_ui), kPrismAiHost);
+base::WeakPtr<PrismAiMessageHandler> AddPrismAiResources(content::WebUI* web_ui,
+                                                         const char* host) {
+  content::WebUIDataSource* source =
+      content::WebUIDataSource::CreateAndAdd(Profile::FromWebUI(web_ui), host);
   source->SetRequestFilter(base::BindRepeating(&HasPrismResource),
                            base::BindRepeating(&ServePrismResource));
-  web_ui->AddMessageHandler(std::make_unique<PrismAiMessageHandler>());
+  auto handler = std::make_unique<PrismAiMessageHandler>();
+  base::WeakPtr<PrismAiMessageHandler> result = handler->GetWeakPtr();
+  web_ui->AddMessageHandler(std::move(handler));
+  return result;
+}
+
+PrismAiUI::PrismAiUI(content::WebUI* web_ui) : WebUIController(web_ui) {
+  AddPrismAiResources(web_ui, kPrismAiHost);
 }
 
 PrismAiUI::~PrismAiUI() = default;
+
+WEB_UI_CONTROLLER_TYPE_IMPL(PrismAiUI)
+
+PrismAiPanelUI::PrismAiPanelUI(content::WebUI* web_ui)
+    : TopChromeWebUIController(web_ui, /*enable_chrome_send=*/true),
+      WebContentsObserver(web_ui->GetWebContents()) {
+  handler_ = AddPrismAiResources(web_ui, kPrismAiPanelHost);
+}
+
+PrismAiPanelUI::~PrismAiPanelUI() = default;
+
+void PrismAiPanelUI::OnVisibilityChanged(content::Visibility visibility) {
+  if (visibility != content::Visibility::VISIBLE && handler_) {
+    handler_->StopForPanelHide();
+  }
+}
+
+WEB_UI_CONTROLLER_TYPE_IMPL(PrismAiPanelUI)
 
 }  // namespace prism::ui

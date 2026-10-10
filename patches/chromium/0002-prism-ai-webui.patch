@@ -2,26 +2,39 @@ diff --git a/chrome/browser/ui/webui/BUILD.gn b/chrome/browser/ui/webui/BUILD.gn
 index 7900f5f23e..f44e121af0 100644
 --- a/chrome/browser/ui/webui/BUILD.gn
 +++ b/chrome/browser/ui/webui/BUILD.gn
-@@ -102,2 +102,6 @@ source_set("configs") {
+@@ -100,6 +100,10 @@ source_set("configs") {
+     "//ui/webui:buildflags",
+   ]
  
 +  if (is_linux || is_win) {
 +    deps += [ "//prism/ui/webui:prism_ai_ui" ]
 +  }
 +
    if (is_win || is_chromeos) {
+     deps += [ "//chrome/browser/ui/webui/signin:inline_login" ]
+   }
 diff --git a/chrome/browser/ui/webui/chrome_web_ui_configs.cc b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-index 093ceae662..f078aced0a 100644
+index 093ceae662..a9dece21dc 100644
 --- a/chrome/browser/ui/webui/chrome_web_ui_configs.cc
 +++ b/chrome/browser/ui/webui/chrome_web_ui_configs.cc
-@@ -69,2 +69,5 @@
+@@ -67,6 +67,9 @@
+ #include "content/public/browser/webui_config_map.h"
+ #include "extensions/buildflags/buildflags.h"
  #include "printing/buildflags/buildflags.h"
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 +#include "prism/ui/webui/prism_ai_ui.h"
 +#endif
  #include "ui/webui/buildflags.h"
-@@ -271,2 +274,5 @@ void RegisterChromeWebUIConfigs() {
+ 
+ #if BUILDFLAG(ENABLE_WEBUI_HISTORY)
+@@ -269,6 +272,10 @@ void RegisterChromeWebUIConfigs() {
+ #endif  // BUILDFLAG(IS_CHROMEOS)
+ 
    auto& map = content::WebUIConfigMap::GetInstance();
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 +  map.AddWebUIConfig(std::make_unique<prism::ui::PrismAiUIConfig>());
++  map.AddWebUIConfig(std::make_unique<prism::ui::PrismAiPanelUIConfig>());
 +#endif
    map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
+   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
+   map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
