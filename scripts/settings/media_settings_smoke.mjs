@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Tests storage isolation and restart persistence in the pinned source build.
 import {execFileSync} from 'node:child_process';
+import {webcrypto} from 'node:crypto';
 import {createServer} from 'node:http';
 import {cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
   realpathSync, rmSync, writeFileSync} from 'node:fs';
@@ -31,27 +32,67 @@ mkdirSync(join(fixture, 'blocking'));
 mkdirSync(join(fixture, 'media'));
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
   join(fixture, 'settings/media_controls_store.mjs'));
+cpSync(join(repo, 'prism/settings/settings_change_bridge.mjs'),
+  join(fixture, 'settings/settings_change_bridge.mjs'));
+cpSync(join(repo, 'prism/settings/settings_message.mjs'),
+  join(fixture, 'settings/settings_message.mjs'));
 for (const file of ['media_controls.html', 'media_controls.css',
   'media_controls_ui.mjs', 'media_controls_boot.mjs']) {
   cpSync(join(repo, 'prism/settings', file),
     join(fixture, 'settings', file));
 }
-cpSync(join(repo, 'prism/blocking/rule_compiler.mjs'),
-  join(fixture, 'blocking/rule_compiler.mjs'));
+for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
+  'signed_rule_update.mjs', 'startup_reconciliation.mjs',
+  'signed_package_store.mjs']) {
+  cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
+}
 cpSync(join(repo, 'prism/media/segment_policy.mjs'),
   join(fixture, 'media/segment_policy.mjs'));
+const pair = await webcrypto.subtle.generateKey('Ed25519', true,
+  ['sign', 'verify']);
+const publicKey = new Uint8Array(await webcrypto.subtle.exportKey('raw',
+  pair.publicKey));
+const payload = new TextEncoder().encode(JSON.stringify({
+  sourceId: 'prism.synthetic', version: '1.0.0', rules: [{
+    id: 1, destinationHost: 'ads.prism.test', resourceTypes: ['script'],
+  }],
+}));
+const signature = new Uint8Array(await webcrypto.subtle.sign('Ed25519',
+  pair.privateKey, payload));
+const envelope = {keyId: 'test-key',
+  payload: Buffer.from(payload).toString('base64url'),
+  signature: Buffer.from(signature).toString('base64url')};
+writeFileSync(join(fixture, 'signed_data.mjs'),
+  `export const envelope = ${JSON.stringify(envelope)};\n` +
+  `export const publicKey = new Uint8Array(${JSON.stringify([...publicKey])});\n`);
 writeFileSync(join(fixture, 'manifest.json'), JSON.stringify({
   manifest_version: 3,
   name: 'Prism Media Settings Smoke',
   version: '0.1.0',
-  permissions: ['storage'],
+  permissions: ['storage', 'declarativeNetRequest'],
   options_page: 'settings/media_controls.html',
-  background: {service_worker: 'worker.js'},
+  background: {service_worker: 'worker.mjs', type: 'module'},
   content_scripts: [{matches: ['http://settings.prism.test/*'],
     js: ['content.js'], run_at: 'document_idle'}],
 }));
-writeFileSync(join(fixture, 'worker.js'),
-  'chrome.runtime.onInstalled.addListener(() => {});');
+writeFileSync(join(fixture, 'worker.mjs'),
+  `import {createMediaSettingsStore} from './settings/media_controls_store.mjs';
+   import {createSettingsChangeHandler} from './settings/settings_change_bridge.mjs';
+   import {createSignedPackageStore} from './blocking/signed_package_store.mjs';
+   import {publicKey} from './signed_data.mjs';
+   const trustedKeys = new Map([['test-key',
+     {sourceId: 'prism.synthetic', publicKey}]]);
+   const incognito = chrome.extension.inIncognitoContext;
+   const storageArea = chrome.storage.local;
+   const handle = createSettingsChangeHandler({extensionId: chrome.runtime.id,
+     settingsStore: createMediaSettingsStore({storageArea, incognito}),
+     packageStore: createSignedPackageStore({storageArea, trustedKeys,
+       incognito}), trustedKeys, dnrApi: chrome.declarativeNetRequest,
+     incognito});
+   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+     handle(message, sender).then(sendResponse);
+     return true;
+   });`);
 writeFileSync(join(fixture, 'control.html'),
   '<!doctype html><script type="module" src="control.mjs"></script>');
 writeFileSync(join(fixture, 'control.mjs'),
@@ -60,15 +101,29 @@ writeFileSync(join(fixture, 'control.mjs'),
    window.prismStore = createMediaSettingsStore({
      storageArea: chrome.storage.local, incognito: chrome.extension.inIncognitoContext,
    });
-   window.prismDefaults = defaultMediaSettings;`);
+   window.prismDefaults = defaultMediaSettings;
+   window.prismRules = () => chrome.declarativeNetRequest.getDynamicRules();
+   import {createSignedPackageStore} from './blocking/signed_package_store.mjs';
+   import {envelope, publicKey} from './signed_data.mjs';
+   const packageStore = createSignedPackageStore({storageArea: chrome.storage.local,
+     trustedKeys: new Map([['test-key',
+       {sourceId: 'prism.synthetic', publicKey}]]), incognito: false});
+   window.prismSavePackage = () => packageStore.save(envelope);`);
 writeFileSync(join(fixture, 'content.js'),
   `Promise.resolve().then(() => chrome.storage.local.get('prismMediaSettingsV1'))
     .then(() => document.documentElement.dataset.prismStorageAccess = 'allowed')
-    .catch(() => document.documentElement.dataset.prismStorageAccess = 'denied');`);
+    .catch(() => document.documentElement.dataset.prismStorageAccess = 'denied');
+   chrome.runtime.sendMessage({type: 'prism.settings.apply'}).then(result =>
+     document.documentElement.dataset.prismApplyAccess = result.error);`);
 
-const server = createServer((_request, response) => {
-  response.writeHead(200, {'content-type': 'text/html'});
-  response.end('<!doctype html><title>Settings isolation probe</title>');
+const server = createServer((request, response) => {
+  if (request.url === '/probe.js') {
+    response.writeHead(200, {'content-type': 'text/javascript'});
+    response.end('window.prismSettingsProbeLoaded = true;');
+  } else {
+    response.writeHead(200, {'content-type': 'text/html'});
+    response.end('<!doctype html><title>Settings isolation probe</title>');
+  }
 });
 let context;
 
@@ -78,7 +133,9 @@ async function openBrowser() {
     headless: true,
     ignoreDefaultArgs: ['--disable-extensions'],
     args: ['--no-proxy-server',
-      '--host-resolver-rules=MAP settings.prism.test 127.0.0.1',
+      '--host-resolver-rules=MAP settings.prism.test 127.0.0.1,' +
+        'MAP ads.prism.test 127.0.0.1,MAP blocked.prism.test 127.0.0.1,' +
+        'MAP news.prism.test 127.0.0.1',
       `--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`],
   });
   const worker = context.serviceWorkers()[0] ??
@@ -96,16 +153,40 @@ async function probeContentScript() {
     await probe.goto(`http://settings.prism.test:${server.address().port}/`);
     await probe.waitForFunction(() =>
       !!document.documentElement.dataset.prismStorageAccess);
-    return await probe.evaluate(() =>
-      document.documentElement.dataset.prismStorageAccess);
+    await probe.waitForFunction(() =>
+      !!document.documentElement.dataset.prismApplyAccess);
+    return await probe.evaluate(() => ({
+      storage: document.documentElement.dataset.prismStorageAccess,
+      apply: document.documentElement.dataset.prismApplyAccess,
+    }));
   } finally {
     await probe.close();
+  }
+}
+
+async function probeRule(host) {
+  const page = await context.newPage();
+  try {
+    await page.goto(`http://${host}:${server.address().port}/`);
+    try {
+      await page.addScriptTag({url:
+        `http://ads.prism.test:${server.address().port}/probe.js`});
+    } catch {
+      // DNR rejects this script on a blocked site.
+    }
+    return page.evaluate(() => !!window.prismSettingsProbeLoaded);
+  } finally {
+    await page.close();
   }
 }
 
 try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const control = await openBrowser();
+  const packageResult = await control.evaluate(() => window.prismSavePackage());
+  if (!packageResult.ok) {
+    throw new Error(`Synthetic package cache: ${JSON.stringify(packageResult)}`);
+  }
   const extensionId = new URL(control.url()).hostname;
   const ui = await context.newPage();
   await ui.goto(`chrome-extension://${extensionId}/settings/media_controls.html`);
@@ -132,11 +213,20 @@ try {
     throw new Error('The options page accepted a duplicate domain');
   }
   await ui.locator('#save-settings').click();
-  await ui.getByRole('status').getByText(/Saved/).waitFor();
+  await ui.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
+  const activated = await control.evaluate(() => window.prismRules());
+  if (activated.length !== 1 ||
+      !activated[0].condition.excludedTopDomains.includes('news.prism.test')) {
+    throw new Error(`Settings were not applied to DNR: ${JSON.stringify(activated)}`);
+  }
+  if (await probeRule('settings.prism.test') ||
+      !await probeRule('news.prism.test')) {
+    throw new Error('The excluded site did not bypass the active rule');
+  }
   await ui.close();
   const access = await probeContentScript();
-  if (access !== 'denied') {
-    throw new Error(`Content script storage access: ${access}`);
+  if (access.storage !== 'denied' || access.apply !== 'unauthorized') {
+    throw new Error(`Content script access: ${JSON.stringify(access)}`);
   }
   await context.close();
   context = null;
@@ -150,8 +240,9 @@ try {
     throw new Error(`Settings did not survive restart: ${JSON.stringify(result)}`);
   }
   const restartedAccess = await probeContentScript();
-  if (restartedAccess !== 'denied') {
-    throw new Error(`Content script storage after restart: ${restartedAccess}`);
+  if (restartedAccess.storage !== 'denied' ||
+      restartedAccess.apply !== 'unauthorized') {
+    throw new Error(`Content script access after restart: ${JSON.stringify(restartedAccess)}`);
   }
   const restartedId = new URL(restartedControl.url()).hostname;
   const reopened = await context.newPage();
@@ -176,9 +267,33 @@ try {
     'docs/evidence/media-controls-linux-20261013.png'), fullPage: true});
   await reopened.getByRole('button', {name: 'Remove news.prism.test'}).click();
   await reopened.locator('#save-settings').click();
+  await reopened.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
   const removed = await restartedControl.evaluate(() => window.prismStore.load());
-  if (removed.error || removed.settings.adblock.disabledSites.length !== 0) {
+  const rulesAfterRemoval = await restartedControl.evaluate(() => window.prismRules());
+  if (removed.error || removed.settings.adblock.disabledSites.length !== 0 ||
+      rulesAfterRemoval.length !== 1 ||
+      rulesAfterRemoval[0].condition.excludedTopDomains?.length) {
     throw new Error(`Excluded site removal failed: ${JSON.stringify(removed)}`);
+  }
+  if (await probeRule('news.prism.test')) {
+    throw new Error('Removing the exclusion did not block the script');
+  }
+  await restartedControl.evaluate(() =>
+    chrome.storage.local.remove('prismSignedRulesV1'));
+  await reopened.locator('#save-settings').click();
+  await reopened.getByRole('status').getByText(
+    'Saved, but ad blocking could not be applied.').waitFor();
+  if (await restartedControl.evaluate(() => window.prismRules()).then(r => r.length)) {
+    throw new Error('Missing signed package did not clear active DNR');
+  }
+  await reopened.locator('#adblock-enabled').uncheck();
+  await reopened.locator('#save-settings').click();
+  await reopened.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
+  if (await restartedControl.evaluate(() => window.prismRules()).then(r => r.length)) {
+    throw new Error('Disabling ad blocking did not immediately clear DNR');
+  }
+  if (!await probeRule('settings.prism.test')) {
+    throw new Error('Disabling ad blocking did not release the script');
   }
   await reopened.close();
   await restartedControl.evaluate(() => chrome.storage.local.set({
@@ -191,7 +306,7 @@ try {
     throw new Error('Damaged settings did not disable the options form');
   }
   await damaged.close();
-  console.log('PASS: media controls UI, validation/removal, failed-load lock, trusted storage, restart and narrow dark view');
+  console.log('PASS: media controls UI, authenticated immediate DNR apply, exclusion/removal/disable, storage isolation, restart and narrow dark view');
 } finally {
   await context?.close();
   await new Promise(resolve => server.close(resolve));

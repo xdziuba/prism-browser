@@ -1,7 +1,7 @@
 import {isMediaSettings} from './media_controls_store.mjs';
 import {SKIPPABLE_CATEGORIES} from '../media/segment_policy.mjs';
 
-export async function mountMediaControls({document, store} = {}) {
+export async function mountMediaControls({document, store, applySaved} = {}) {
   if (!document?.getElementById || typeof store?.load !== 'function' ||
       typeof store?.save !== 'function') {
     throw new TypeError('A settings document and store are required');
@@ -109,13 +109,27 @@ export async function mountMediaControls({document, store} = {}) {
     } catch {
       saved = {ok: false};
     }
-    lock(false);
     if (!saved?.ok) {
+      lock(false);
       message('Settings could not be saved.', 'error');
       return;
     }
     draft = next;
-    message('Saved. Changes take effect after the component restarts.');
+    if (applySaved) {
+      let applied;
+      try {
+        applied = await applySaved();
+      } catch {
+        applied = {ok: false};
+      }
+      message(applied?.ok ?
+        'Saved. Ad blocking updated; video choices apply on the next lookup.' :
+        'Saved, but ad blocking could not be applied.',
+      applied?.ok ? 'info' : 'error');
+    } else {
+      message('Saved. Changes take effect after the component restarts.');
+    }
+    lock(false);
     saveButton.focus();
   });
 
