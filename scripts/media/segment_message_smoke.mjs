@@ -32,7 +32,8 @@ for (const path of [fixture, join(fixture, 'media'),
   mkdirSync(path);
 }
 for (const file of ['segment_message_bridge.mjs', 'segment_lookup.mjs',
-  'segment_policy.mjs', 'youtube_site_adapter.mjs']) {
+  'segment_policy.mjs', 'youtube_site_adapter.mjs',
+  'watch_playback_session.mjs', 'playback_controller.mjs']) {
   cpSync(join(repo, 'prism/media', file), join(fixture, 'media', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
@@ -48,6 +49,8 @@ writeFileSync(join(fixture, 'manifest.json'), JSON.stringify({
   background: {service_worker: 'worker.mjs', type: 'module'},
   content_scripts: [{matches: ['https://www.youtube.com/*'],
     js: ['content.js'], run_at: 'document_idle'}],
+  web_accessible_resources: [{resources: ['media/*.mjs'],
+    matches: ['https://www.youtube.com/*']}],
 }));
 writeFileSync(join(fixture, 'worker.mjs'),
   `import {createMediaSettingsStore} from './settings/media_controls_store.mjs';
@@ -62,7 +65,7 @@ writeFileSync(join(fixture, 'worker.mjs'),
      fetchPrefix: async prefix => {
        if (prefix !== ${JSON.stringify(prefix)}) throw new Error('bad prefix');
        return [{videoID: ${JSON.stringify(videoId)}, segments: [{
-         segment: [10, 20], category: 'sponsor', UUID: 'synthetic-1',
+         segment: [0.5, 2.5], category: 'sponsor', UUID: 'synthetic-1',
          actionType: 'skip',
        }]}];
      },
@@ -73,11 +76,32 @@ writeFileSync(join(fixture, 'worker.mjs'),
      return true;
    });`);
 writeFileSync(join(fixture, 'content.js'),
-  `chrome.runtime.sendMessage({type: 'prism.media.lookup', duration: 100})
-    .then(result => document.documentElement.dataset.prismLookup =
-      JSON.stringify(result))
-    .catch(() => document.documentElement.dataset.prismLookup =
-      JSON.stringify({error: 'message_failed'}));`);
+  `if (new URL(location.href).searchParams.has('playback')) {
+     import(chrome.runtime.getURL('media/watch_playback_session.mjs'))
+       .then(({createWatchPlaybackSession}) => {
+         const session = createWatchPlaybackSession({
+           root: document, events: window, readURL: () => location.href,
+           requestSegments: duration => chrome.runtime.sendMessage({
+             type: 'prism.media.lookup', duration,
+           }),
+           onDecision: decision => {
+             document.documentElement.dataset.prismDecision =
+               JSON.stringify(decision);
+           },
+           incognito: chrome.extension.inIncognitoContext,
+         });
+         session.start();
+         document.documentElement.dataset.prismSession = 'ready';
+       }).catch(error => {
+         document.documentElement.dataset.prismSession = error.message;
+       });
+   } else {
+     chrome.runtime.sendMessage({type: 'prism.media.lookup', duration: 100})
+       .then(result => document.documentElement.dataset.prismLookup =
+         JSON.stringify(result))
+       .catch(() => document.documentElement.dataset.prismLookup =
+         JSON.stringify({error: 'message_failed'}));
+   }`);
 writeFileSync(join(fixture, 'control.html'),
   '<!doctype html><script type="module" src="control.mjs"></script>');
 writeFileSync(join(fixture, 'control.mjs'),
@@ -89,6 +113,13 @@ writeFileSync(join(fixture, 'control.mjs'),
    });
    window.prismDefaults = defaultMediaSettings;`);
 let context;
+const videoPath = join(root, 'synthetic.webm');
+execFileSync('ffmpeg', [
+  '-hide_banner', '-loglevel', 'error', '-f', 'lavfi',
+  '-i', 'testsrc=size=32x32:rate=10:duration=3', '-c:v', 'libvpx',
+  '-g', '1', '-b:v', '100k', '-an', '-y', videoPath,
+], {timeout: 30000});
+const videoData = readFileSync(videoPath).toString('base64');
 
 async function probe(path) {
   const page = await context.newPage();
@@ -113,7 +144,11 @@ try {
   });
   await context.route('https://www.youtube.com/**', route =>
     route.fulfill({status: 200, contentType: 'text/html',
-      body: '<!doctype html><title>Synthetic watch page</title>'}));
+      body: route.request().url().includes('playback=1') ?
+        `<!doctype html><title>Synthetic playback</title>
+         <div id="movie_player"><video class="html5-main-video"
+         src="data:video/webm;base64,${videoData}" preload="auto"></video></div>` :
+        '<!doctype html><title>Synthetic watch page</title>'}));
   const worker = context.serviceWorkers()[0] ??
     await context.waitForEvent('serviceworker', {timeout: 10000});
   const extensionId = new URL(worker.url()).hostname;
@@ -142,7 +177,56 @@ try {
       saved, authorized, ambiguous, disabled, afterDisable,
     })}`);
   }
-  console.log('PASS: browser sender validation, synthetic lookup, disable');
+  const enabledAgain = await control.evaluate(async () => {
+    const settings = (await window.prismStore.load()).settings;
+    settings.segments.enabled = true;
+    return window.prismStore.save(settings);
+  });
+  if (!enabledAgain.ok) {
+    throw new Error('Could not re-enable synthetic media settings');
+  }
+  const playback = await context.newPage();
+  try {
+    await playback.goto(`https://www.youtube.com/watch?v=${videoId}&playback=1`);
+    await playback.waitForFunction(() =>
+      document.documentElement.dataset.prismSession === 'ready',
+    null, {timeout: 10000});
+    await playback.waitForFunction(() =>
+      document.querySelector('video')?.readyState >= 1);
+    await playback.locator('video').evaluate(video => {
+      video.currentTime = 0.7;
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    await playback.waitForFunction(() =>
+      document.querySelector('video').currentTime > 2.4,
+    null, {timeout: 10000});
+    const decision = await playback.evaluate(() =>
+      JSON.parse(document.documentElement.dataset.prismDecision));
+    if (decision?.kind !== 'auto' || decision.videoId !== videoId) {
+      throw new Error(`Unexpected playback decision: ${JSON.stringify(decision)}`);
+    }
+    await playback.locator('#movie_player').evaluate(player =>
+      player.classList.add('ad-showing'));
+    await playback.waitForTimeout(100);
+    await playback.locator('video').evaluate(video => {
+      video.currentTime = 0.7;
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    await playback.waitForTimeout(100);
+    const adTime = await playback.locator('video').evaluate(video =>
+      video.currentTime);
+    if (adTime > 0.9) {
+      throw new Error(`Seek ran during synthetic ad state: ${adTime}`);
+    }
+    await playback.locator('#movie_player').evaluate(player =>
+      player.classList.remove('ad-showing'));
+    await playback.waitForFunction(() =>
+      document.querySelector('video').currentTime > 2.4,
+    null, {timeout: 10000});
+  } finally {
+    await playback.close();
+  }
+  console.log('PASS: browser sender validation, synthetic lookup, disable, playback seek and ad suspension');
 } finally {
   await context?.close();
   rmSync(root, {recursive: true, force: true});

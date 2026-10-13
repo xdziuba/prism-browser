@@ -16,10 +16,11 @@ const sender = {
   tab: {id: 3, url, incognito: false},
 };
 
-function fixture({enabled = true, incognito = false,
+function fixture({enabled = true, incognito = false, sponsorMode = 'auto',
                   settingsError = null} = {}) {
   const settings = defaultMediaSettings();
   settings.segments.enabled = enabled;
+  settings.segments.categories.sponsor = sponsorMode;
   let settingsReads = 0;
   const prefixes = [];
   const handler = createSegmentMessageHandler({
@@ -43,10 +44,20 @@ test('derives video ID from browser sender and returns only validated segments',
   const item = fixture();
   const result = await item.handler(request, sender);
   assert.deepEqual(result, {segments: [{start: 10, end: 20,
-    category: 'sponsor', uuid: 'synthetic-1'}], rejected: 0, error: null});
+    category: 'sponsor', uuid: 'synthetic-1', mode: 'auto'}],
+    rejected: 0, error: null});
   assert.deepEqual(item.prefixes, [await hashVideoIdPrefix(videoId)]);
   assert.equal(item.settingsReads, 1);
   assert.equal(Object.hasOwn(result, 'videoId'), false);
+});
+
+test('worker returns the effective action and removes disabled categories', async () => {
+  const manual = fixture({sponsorMode: 'manual'});
+  const off = fixture({sponsorMode: 'off'});
+  assert.equal((await manual.handler(request, sender)).segments[0].mode,
+    'manual');
+  assert.deepEqual((await off.handler(request, sender)).segments, []);
+  assert.equal(off.prefixes.length, 0);
 });
 
 test('SPA route uses current browser tab URL, not old document URL', async () => {

@@ -71,7 +71,7 @@ export function createYouTubeWatchObserver({root, events, readURL,
     }
   };
   const treeObserver = new Observer(scheduleRefresh);
-  const playerObserver = new Observer(scheduleRefresh);
+  const playerObserver = new Observer(refresh);
 
   function watchPlayer() {
     const player = root.querySelector('#movie_player');

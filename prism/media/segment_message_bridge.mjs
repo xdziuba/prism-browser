@@ -93,8 +93,13 @@ export function createSegmentMessageHandler({extensionId, settingsStore,
       if (!loaded.settings.segments.enabled) {
         return empty('disabled');
       }
-      return await lookupSegments({videoId, duration: message.duration,
+      const result = await lookupSegments({videoId, duration: message.duration,
         settings: loaded.settings.segments, incognito: false, fetchPrefix});
+      return {...result, segments: result.segments.flatMap(segment => {
+        const mode = loaded.settings.segments.categories[segment.category];
+        return mode === 'auto' || mode === 'manual' ?
+          [{...segment, mode}] : [];
+      })};
     } finally {
       --activeLookups;
     }
