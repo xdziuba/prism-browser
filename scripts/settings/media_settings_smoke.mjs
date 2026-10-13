@@ -30,6 +30,9 @@ mkdirSync(fixture);
 mkdirSync(join(fixture, 'settings'));
 mkdirSync(join(fixture, 'blocking'));
 mkdirSync(join(fixture, 'media'));
+mkdirSync(join(fixture, 'component'));
+cpSync(join(repo, 'prism/component/worker_runtime.mjs'),
+  join(fixture, 'component/worker_runtime.mjs'));
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
   join(fixture, 'settings/media_controls_store.mjs'));
 cpSync(join(repo, 'prism/settings/settings_change_bridge.mjs'),
@@ -47,8 +50,10 @@ for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'adblock_rule_owner.mjs', 'rule_diagnostics.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
-cpSync(join(repo, 'prism/media/segment_policy.mjs'),
-  join(fixture, 'media/segment_policy.mjs'));
+for (const file of ['segment_policy.mjs', 'segment_lookup.mjs',
+  'segment_message_bridge.mjs', 'youtube_site_adapter.mjs']) {
+  cpSync(join(repo, 'prism/media', file), join(fixture, 'media', file));
+}
 const pair = await webcrypto.subtle.generateKey('Ed25519', true,
   ['sign', 'verify']);
 const publicKey = new Uint8Array(await webcrypto.subtle.exportKey('raw',
@@ -77,26 +82,14 @@ writeFileSync(join(fixture, 'manifest.json'), JSON.stringify({
     js: ['content.js'], run_at: 'document_idle'}],
 }));
 writeFileSync(join(fixture, 'worker.mjs'),
-  `import {createMediaSettingsStore} from './settings/media_controls_store.mjs';
-   import {createSettingsChangeHandler} from './settings/settings_change_bridge.mjs';
-   import {createSignedPackageStore} from './blocking/signed_package_store.mjs';
-   import {createAdblockRuleOwner} from './blocking/adblock_rule_owner.mjs';
+  `import {registerBundledComponentWorker} from
+     './component/worker_runtime.mjs';
    import {publicKey} from './signed_data.mjs';
    const trustedKeys = new Map([['test-key',
      {sourceId: 'prism.synthetic', publicKey}]]);
-   const incognito = chrome.extension.inIncognitoContext;
-   const storageArea = chrome.storage.local;
-   const ruleOwner = createAdblockRuleOwner({
-     settingsStore: createMediaSettingsStore({storageArea, incognito}),
-     packageStore: createSignedPackageStore({storageArea, trustedKeys,
-       incognito}), trustedKeys, dnrApi: chrome.declarativeNetRequest,
-     incognito});
-   const handle = createSettingsChangeHandler({extensionId: chrome.runtime.id,
-     ruleOwner, incognito});
-   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-     handle(message, sender).then(sendResponse);
-     return true;
-   });`);
+   registerBundledComponentWorker({runtime: chrome.runtime,
+     storageArea: chrome.storage.local, dnrApi: chrome.declarativeNetRequest,
+     incognito: chrome.extension.inIncognitoContext, trustedKeys});`);
 writeFileSync(join(fixture, 'control.html'),
   '<!doctype html><script type="module" src="control.mjs"></script>');
 writeFileSync(join(fixture, 'control.mjs'),
