@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {createSettingsChangeHandler, APPLY_SETTINGS_MESSAGE} from
+import {createSettingsChangeHandler, APPLY_SETTINGS_MESSAGE,
+  RULE_STATUS_MESSAGE} from
   '../../prism/settings/settings_change_bridge.mjs';
 import {defaultMediaSettings} from
   '../../prism/settings/media_controls_store.mjs';
@@ -62,10 +63,25 @@ test('authentic signal reloads trusted settings and returns bounded status',
     assert.deepEqual(calls, ['settings', 'read']);
   });
 
+test('status query accepts only the options page and exposes no rule details',
+  async () => {
+    const {handle, calls} = fixture();
+    assert.deepEqual(await handle({type: RULE_STATUS_MESSAGE}, sender),
+      {state: 'disabled', ruleCount: 0, sourceId: null, version: null});
+    assert.deepEqual(calls, ['settings', 'read']);
+    calls.length = 0;
+    assert.equal((await handle({type: RULE_STATUS_MESSAGE},
+      {...sender, frameId: 1})).error, 'unauthorized');
+    assert.equal((await handle({type: RULE_STATUS_MESSAGE, url: 'x'},
+      sender)).error, 'unauthorized');
+    assert.deepEqual(calls, []);
+  });
+
 test('unknown Incognito mode fails before storage or DNR access', async () => {
   const calls = [];
   const handle = createSettingsChangeHandler({extensionId,
-    ruleOwner: {settingsChanged() { calls.push('rules'); }},
+    ruleOwner: {settingsChanged() { calls.push('rules'); },
+      status() { calls.push('status'); }},
     incognito: undefined});
   assert.deepEqual(await handle(message, sender),
     {ok: false, state: 'skipped', error: 'incognito_disabled'});

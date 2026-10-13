@@ -12,7 +12,7 @@ function normalized(rules) {
   })).sort((left, right) => left.id - right.id);
 }
 
-function sameRules(left, right) {
+export function sameCompiledRules(left, right) {
   return isCompiledRuleSet(left) && isCompiledRuleSet(right) &&
       JSON.stringify(normalized(left)) === JSON.stringify(normalized(right));
 }
@@ -38,7 +38,7 @@ export function createDynamicRuleActivator(api) {
         return {ok: false, error: 'unexpected_existing_rules',
           installedRules: null};
       }
-      if (sameRules(before, candidate.rules)) {
+      if (sameCompiledRules(before, candidate.rules)) {
         return {ok: true, error: null, installedRules: before};
       }
       try {
@@ -55,7 +55,7 @@ export function createDynamicRuleActivator(api) {
       } catch {
         after = null;
       }
-      if (after && sameRules(after, candidate.rules)) {
+      if (after && sameCompiledRules(after, candidate.rules)) {
         return {ok: true, error: null, installedRules: after};
       }
       try {
@@ -66,7 +66,7 @@ export function createDynamicRuleActivator(api) {
         ])];
         await api.updateDynamicRules({removeRuleIds, addRules: before});
         const restored = await api.getDynamicRules();
-        if (sameRules(restored, before)) {
+        if (sameCompiledRules(restored, before)) {
           return {ok: false, error: 'readback_mismatch',
             installedRules: restored};
         }

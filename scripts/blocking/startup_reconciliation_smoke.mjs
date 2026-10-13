@@ -33,7 +33,7 @@ for (const path of [fixture, join(fixture, 'blocking'),
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'signed_rule_update.mjs', 'startup_reconciliation.mjs',
   'signed_package_store.mjs', 'signed_rule_coordinator.mjs',
-  'adblock_rule_owner.mjs']) {
+  'adblock_rule_owner.mjs', 'rule_diagnostics.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),

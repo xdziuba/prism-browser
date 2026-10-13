@@ -44,7 +44,7 @@ for (const file of ['media_controls.html', 'media_controls.css',
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'signed_rule_update.mjs', 'startup_reconciliation.mjs',
   'signed_package_store.mjs', 'signed_rule_coordinator.mjs',
-  'adblock_rule_owner.mjs']) {
+  'adblock_rule_owner.mjs', 'rule_diagnostics.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/media/segment_policy.mjs'),
@@ -194,7 +194,8 @@ try {
   const extensionId = new URL(control.url()).hostname;
   const ui = await context.newPage();
   await ui.goto(`chrome-extension://${extensionId}/settings/media_controls.html`);
-  await ui.getByRole('status').getByText('Ready').waitFor();
+  await ui.locator('#form-status').getByText('Ready').waitFor();
+  await ui.locator('#rule-status').getByText('Off · no rules installed.').waitFor();
   if (await ui.locator('#segments-enabled').isChecked() ||
       await ui.locator('#adblock-enabled').isChecked()) {
     throw new Error('Media controls did not start disabled');
@@ -204,7 +205,7 @@ try {
   await ui.locator('#adblock-enabled').check();
   await ui.locator('#site-input').fill('https://invalid.prism.test/path');
   await ui.locator('#add-site').click();
-  if (!await ui.getByRole('status').textContent().then(value =>
+  if (!await ui.locator('#form-status').textContent().then(value =>
       value.includes('Enter a new domain')) ||
       await ui.locator('#site-list li').count()) {
     throw new Error('The options page accepted an invalid domain');
@@ -217,7 +218,9 @@ try {
     throw new Error('The options page accepted a duplicate domain');
   }
   await ui.locator('#save-settings').click();
-  await ui.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
+  await ui.locator('#form-status').getByText(/Saved. Ad blocking updated/).waitFor();
+  await ui.locator('#rule-status').getByText(
+    'Active · 1 rule · prism.synthetic 1.0.0').waitFor();
   const activated = await control.evaluate(() => window.prismRules());
   if (activated.length !== 1 ||
       !activated[0].condition.excludedTopDomains.includes('news.prism.test')) {
@@ -253,7 +256,9 @@ try {
   await reopened.setViewportSize({width: 420, height: 900});
   await reopened.emulateMedia({colorScheme: 'dark'});
   await reopened.goto(`chrome-extension://${restartedId}/settings/media_controls.html`);
-  await reopened.getByRole('status').getByText('Ready').waitFor();
+  await reopened.locator('#form-status').getByText('Ready').waitFor();
+  await reopened.locator('#rule-status').getByText(
+    'Active · 1 rule · prism.synthetic 1.0.0').waitFor();
   const uiState = {
     segments: await reopened.locator('#segments-enabled').isChecked(),
     intro: await reopened.locator('#category-intro').inputValue(),
@@ -271,7 +276,7 @@ try {
     'docs/evidence/media-controls-linux-20261013.png'), fullPage: true});
   await reopened.getByRole('button', {name: 'Remove news.prism.test'}).click();
   await reopened.locator('#save-settings').click();
-  await reopened.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
+  await reopened.locator('#form-status').getByText(/Saved. Ad blocking updated/).waitFor();
   const removed = await restartedControl.evaluate(() => window.prismStore.load());
   const rulesAfterRemoval = await restartedControl.evaluate(() => window.prismRules());
   if (removed.error || removed.settings.adblock.disabledSites.length !== 0 ||
@@ -285,14 +290,18 @@ try {
   await restartedControl.evaluate(() =>
     chrome.storage.local.remove('prismSignedRulesV1'));
   await reopened.locator('#save-settings').click();
-  await reopened.getByRole('status').getByText(
+  await reopened.locator('#form-status').getByText(
     'Saved, but ad blocking could not be applied.').waitFor();
+  await reopened.locator('#rule-status').getByText(
+    'No verified rule package is available.').waitFor();
   if (await restartedControl.evaluate(() => window.prismRules()).then(r => r.length)) {
     throw new Error('Missing signed package did not clear active DNR');
   }
   await reopened.locator('#adblock-enabled').uncheck();
   await reopened.locator('#save-settings').click();
-  await reopened.getByRole('status').getByText(/Saved. Ad blocking updated/).waitFor();
+  await reopened.locator('#form-status').getByText(/Saved. Ad blocking updated/).waitFor();
+  await reopened.locator('#rule-status').getByText(
+    'Off · no rules installed.').waitFor();
   if (await restartedControl.evaluate(() => window.prismRules()).then(r => r.length)) {
     throw new Error('Disabling ad blocking did not immediately clear DNR');
   }
@@ -305,7 +314,7 @@ try {
   }));
   const damaged = await context.newPage();
   await damaged.goto(`chrome-extension://${restartedId}/settings/media_controls.html`);
-  await damaged.getByRole('status').getByText(/unavailable/).waitFor();
+  await damaged.locator('#form-status').getByText(/unavailable/).waitFor();
   if (!await damaged.locator('#save-settings').isDisabled()) {
     throw new Error('Damaged settings did not disable the options form');
   }

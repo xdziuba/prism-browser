@@ -1,6 +1,7 @@
 // The worker's one queue for startup, settings changes, and signed updates.
 import {reconcileAdblockStartup} from './startup_reconciliation.mjs';
 import {createSignedRuleCoordinator} from './signed_rule_coordinator.mjs';
+import {readAdblockStatus} from './rule_diagnostics.mjs';
 
 export function createAdblockRuleOwner({settingsStore, packageStore,
     trustedKeys, dnrApi, incognito,
@@ -22,9 +23,12 @@ export function createAdblockRuleOwner({settingsStore, packageStore,
     loadSignedEnvelope: async () => (await packageStore.load()).envelope,
     trustedKeys, dnrApi, incognito, subtle,
   });
+  const status = () => readAdblockStatus({settingsStore, packageStore,
+    trustedKeys, dnrApi, incognito, subtle});
   return Object.freeze({
     startup: () => enqueue(reconcile),
     settingsChanged: () => enqueue(reconcile),
     installUpdate: envelope => enqueue(() => update(envelope)),
+    status: () => enqueue(status),
   });
 }

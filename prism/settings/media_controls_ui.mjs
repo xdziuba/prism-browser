@@ -1,13 +1,15 @@
 import {isMediaSettings} from './media_controls_store.mjs';
 import {SKIPPABLE_CATEGORIES} from '../media/segment_policy.mjs';
 
-export async function mountMediaControls({document, store, applySaved} = {}) {
+export async function mountMediaControls({document, store, applySaved,
+                                          readStatus} = {}) {
   if (!document?.getElementById || typeof store?.load !== 'function' ||
       typeof store?.save !== 'function') {
     throw new TypeError('A settings document and store are required');
   }
   const form = document.getElementById('media-form');
   const status = document.getElementById('form-status');
+  const ruleStatus = document.getElementById('rule-status');
   const sites = document.getElementById('site-list');
   const siteInput = document.getElementById('site-input');
   const addButton = document.getElementById('add-site');
@@ -25,6 +27,34 @@ export async function mountMediaControls({document, store, applySaved} = {}) {
   function message(value, kind = 'info') {
     status.textContent = value;
     status.dataset.kind = kind;
+  }
+
+  async function refreshRuleStatus() {
+    let value;
+    try {
+      value = await readStatus?.();
+    } catch {
+      value = null;
+    }
+    let summary = 'Rule status could not be checked.';
+    if (value?.state === 'disabled' && value.ruleCount === 0) {
+      summary = 'Off · no rules installed.';
+    } else if (value?.state === 'active' &&
+        Number.isSafeInteger(value.ruleCount) &&
+        value.ruleCount >= 0 && value.ruleCount <= 1000 &&
+        typeof value.sourceId === 'string' &&
+        /^[a-z][a-z0-9._-]{0,63}$/.test(value.sourceId) &&
+        typeof value.version === 'string' &&
+        /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(value.version)) {
+      summary = `Active · ${value.ruleCount} ` +
+        `${value.ruleCount === 1 ? 'rule' : 'rules'} · ` +
+        `${value.sourceId} ${value.version}`;
+    } else if (value?.state === 'unavailable') {
+      summary = 'No verified rule package is available.';
+    } else if (value?.state === 'drift') {
+      summary = 'Installed rules differ from saved settings. Save again to reconcile.';
+    }
+    ruleStatus.textContent = summary;
   }
 
   function lock(locked) {
@@ -129,6 +159,7 @@ export async function mountMediaControls({document, store, applySaved} = {}) {
     } else {
       message('Saved. Changes take effect after the component restarts.');
     }
+    await refreshRuleStatus();
     lock(false);
     saveButton.focus();
   });
@@ -141,6 +172,7 @@ export async function mountMediaControls({document, store, applySaved} = {}) {
     loaded = null;
   }
   if (loaded?.error || !isMediaSettings(loaded?.settings)) {
+    await refreshRuleStatus();
     message('Settings are unavailable. No changes were saved.', 'error');
     return {ok: false};
   }
@@ -151,6 +183,7 @@ export async function mountMediaControls({document, store, applySaved} = {}) {
     actions.get(category).value = draft.segments.categories[category];
   }
   renderSites();
+  await refreshRuleStatus();
   lock(false);
   message('Ready');
   return {ok: true};

@@ -86,11 +86,15 @@ test('startup, update, and settings reconciliation share one DNR queue',
     await gate.entered;
     const update = item.owner.installUpdate(next);
     const settings = item.owner.settingsChanged();
+    const status = item.owner.status();
     await new Promise(resolve => setTimeout(resolve, 5));
     assert.equal(item.calls.filter(call => call === 'update').length, 1);
     gate.release();
-    const results = await Promise.all([startup, update, settings]);
-    assert.deepEqual(results.map(result => result.ok), [true, true, true]);
+    const results = await Promise.all([startup, update, settings, status]);
+    assert.deepEqual(results.slice(0, 3).map(result => result.ok),
+      [true, true, true]);
+    assert.deepEqual(results[3], {state: 'active', ruleCount: 1,
+      sourceId: 'prism.synthetic', version: '1.1.0'});
     assert.equal(item.rules.length, 1);
     assert.deepEqual(item.rules[0].condition.requestDomains,
       ['newads.prism.test']);
@@ -123,5 +127,6 @@ test('Incognito owner touches no external state', async () => {
     owner.settingsChanged(), owner.installUpdate({})]);
   assert.equal(results.every(result =>
     result.error === 'incognito_disabled'), true);
+  assert.equal((await owner.status()).state, 'unknown');
   assert.deepEqual(calls, []);
 });
