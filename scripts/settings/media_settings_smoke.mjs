@@ -43,7 +43,8 @@ for (const file of ['media_controls.html', 'media_controls.css',
 }
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'signed_rule_update.mjs', 'startup_reconciliation.mjs',
-  'signed_package_store.mjs']) {
+  'signed_package_store.mjs', 'signed_rule_coordinator.mjs',
+  'adblock_rule_owner.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/media/segment_policy.mjs'),
@@ -79,16 +80,19 @@ writeFileSync(join(fixture, 'worker.mjs'),
   `import {createMediaSettingsStore} from './settings/media_controls_store.mjs';
    import {createSettingsChangeHandler} from './settings/settings_change_bridge.mjs';
    import {createSignedPackageStore} from './blocking/signed_package_store.mjs';
+   import {createAdblockRuleOwner} from './blocking/adblock_rule_owner.mjs';
    import {publicKey} from './signed_data.mjs';
    const trustedKeys = new Map([['test-key',
      {sourceId: 'prism.synthetic', publicKey}]]);
    const incognito = chrome.extension.inIncognitoContext;
    const storageArea = chrome.storage.local;
-   const handle = createSettingsChangeHandler({extensionId: chrome.runtime.id,
+   const ruleOwner = createAdblockRuleOwner({
      settingsStore: createMediaSettingsStore({storageArea, incognito}),
      packageStore: createSignedPackageStore({storageArea, trustedKeys,
        incognito}), trustedKeys, dnrApi: chrome.declarativeNetRequest,
      incognito});
+   const handle = createSettingsChangeHandler({extensionId: chrome.runtime.id,
+     ruleOwner, incognito});
    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
      handle(message, sender).then(sendResponse);
      return true;

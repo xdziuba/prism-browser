@@ -4,6 +4,8 @@ import {createSettingsChangeHandler, APPLY_SETTINGS_MESSAGE} from
   '../../prism/settings/settings_change_bridge.mjs';
 import {defaultMediaSettings} from
   '../../prism/settings/media_controls_store.mjs';
+import {createAdblockRuleOwner} from
+  '../../prism/blocking/adblock_rule_owner.mjs';
 
 const extensionId = 'a'.repeat(32);
 const sender = {id: extensionId, frameId: 0,
@@ -26,8 +28,10 @@ function fixture() {
     async getDynamicRules() { calls.push('read'); return []; },
     async updateDynamicRules() { calls.push('update'); },
   };
-  const handle = createSettingsChangeHandler({extensionId, settingsStore,
-    packageStore, trustedKeys: new Map(), dnrApi, incognito: false});
+  const ruleOwner = createAdblockRuleOwner({settingsStore, packageStore,
+    trustedKeys: new Map(), dnrApi, incognito: false});
+  const handle = createSettingsChangeHandler({extensionId, ruleOwner,
+    incognito: false});
   return {handle, calls};
 }
 
@@ -61,9 +65,8 @@ test('authentic signal reloads trusted settings and returns bounded status',
 test('unknown Incognito mode fails before storage or DNR access', async () => {
   const calls = [];
   const handle = createSettingsChangeHandler({extensionId,
-    settingsStore: {load() { calls.push('settings'); }},
-    packageStore: {load() { calls.push('package'); }},
-    dnrApi: {}, incognito: undefined});
+    ruleOwner: {settingsChanged() { calls.push('rules'); }},
+    incognito: undefined});
   assert.deepEqual(await handle(message, sender),
     {ok: false, state: 'skipped', error: 'incognito_disabled'});
   assert.deepEqual(calls, []);
@@ -83,9 +86,11 @@ test('accepted notifications reconcile serially', async () => {
   }};
   const dnrApi = {async getDynamicRules() { return []; },
     async updateDynamicRules() {}};
-  const handle = createSettingsChangeHandler({extensionId, settingsStore,
+  const ruleOwner = createAdblockRuleOwner({settingsStore,
     packageStore: {async load() { return {envelope: null}; }},
     trustedKeys: new Map(), dnrApi, incognito: false});
+  const handle = createSettingsChangeHandler({extensionId, ruleOwner,
+    incognito: false});
   const results = await Promise.all([
     handle(message, sender), handle(message, sender)]);
   assert.equal(results.every(result => result.ok), true);

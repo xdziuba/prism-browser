@@ -32,7 +32,8 @@ for (const path of [fixture, join(fixture, 'blocking'),
 }
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'signed_rule_update.mjs', 'startup_reconciliation.mjs',
-  'signed_package_store.mjs', 'signed_rule_coordinator.mjs']) {
+  'signed_package_store.mjs', 'signed_rule_coordinator.mjs',
+  'adblock_rule_owner.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
@@ -83,12 +84,10 @@ writeFileSync(join(fixture, 'control.html'),
 writeFileSync(join(fixture, 'control.mjs'),
   `import {createMediaSettingsStore, defaultMediaSettings} from
      './settings/media_controls_store.mjs';
-   import {reconcileAdblockStartup} from
-     './blocking/startup_reconciliation.mjs';
    import {createSignedPackageStore, SIGNED_PACKAGE_KEY} from
      './blocking/signed_package_store.mjs';
-   import {createSignedRuleCoordinator} from
-     './blocking/signed_rule_coordinator.mjs';
+   import {createAdblockRuleOwner} from
+     './blocking/adblock_rule_owner.mjs';
    import {envelope, nextEnvelope, publicKey} from './signed_data.mjs';
    const store = createMediaSettingsStore({storageArea: chrome.storage.local,
      incognito: chrome.extension.inIncognitoContext});
@@ -110,23 +109,15 @@ writeFileSync(join(fixture, 'control.mjs'),
      await chrome.storage.local.remove(SIGNED_PACKAGE_KEY);
      return window.prismSavePackage();
    };
-   window.prismReconcile = () => reconcileAdblockStartup({
-     settingsStore: store,
-     loadSignedEnvelope: async () =>
-       (await window.prismPackageStore.load()).envelope,
-     trustedKeys: new Map([['test-key',
-       {sourceId: 'prism.synthetic', publicKey}]]),
-     dnrApi: chrome.declarativeNetRequest,
-     incognito: chrome.extension.inIncognitoContext,
-   });
-   const coordinate = createSignedRuleCoordinator({
+   const owner = createAdblockRuleOwner({
      settingsStore: store, packageStore: window.prismPackageStore,
      dnrApi: chrome.declarativeNetRequest,
      trustedKeys: new Map([['test-key',
        {sourceId: 'prism.synthetic', publicKey}]]),
      incognito: chrome.extension.inIncognitoContext,
    });
-   window.prismApplyUpdate = () => coordinate(nextEnvelope);`);
+   window.prismReconcile = () => owner.startup();
+   window.prismApplyUpdate = () => owner.installUpdate(nextEnvelope);`);
 
 const server = createServer((request, response) => {
   if (request.url === '/probe.js') {

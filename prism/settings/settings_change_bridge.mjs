@@ -1,5 +1,4 @@
 // A fixed, authenticated options-page signal; settings are read in the worker.
-import {reconcileAdblockStartup} from '../blocking/startup_reconciliation.mjs';
 import {APPLY_SETTINGS_MESSAGE} from './settings_message.mjs';
 
 export {APPLY_SETTINGS_MESSAGE};
@@ -17,36 +16,30 @@ function isRequest(message, sender, extensionId, optionsUrl) {
     (sender.tab === undefined || sender.tab.incognito === false);
 }
 
-export function createSettingsChangeHandler({extensionId, settingsStore,
-    packageStore, trustedKeys, dnrApi, incognito,
-    subtle = globalThis.crypto?.subtle} = {}) {
+export function createSettingsChangeHandler({extensionId, ruleOwner,
+    incognito} = {}) {
   if (typeof extensionId !== 'string' || !/^[a-p]{32}$/.test(extensionId)) {
     throw new TypeError('A Chromium extension ID is required');
   }
+  if (typeof ruleOwner?.settingsChanged !== 'function') {
+    throw new TypeError('A worker rule owner is required');
+  }
   const optionsUrl = `chrome-extension://${extensionId}/settings/media_controls.html`;
-  let pending = Promise.resolve();
 
-  return function applySettings(message, sender) {
+  return async function applySettings(message, sender) {
     if (incognito !== false) {
-      return Promise.resolve({ok: false, state: 'skipped',
-        error: 'incognito_disabled'});
+      return {ok: false, state: 'skipped',
+        error: 'incognito_disabled'};
     }
     if (!isRequest(message, sender, extensionId, optionsUrl)) {
-      return Promise.resolve({ok: false, state: 'skipped',
-        error: 'unauthorized'});
+      return {ok: false, state: 'skipped',
+        error: 'unauthorized'};
     }
-    const run = async () => {
-      const result = await reconcileAdblockStartup({
-        settingsStore,
-        loadSignedEnvelope: async () => (await packageStore.load()).envelope,
-        trustedKeys, dnrApi, incognito, subtle,
-      });
+    try {
+      const result = await ruleOwner.settingsChanged();
       return {ok: result.ok, state: result.state, error: result.error};
-    };
-    const result = pending.then(run).catch(() => ({
-      ok: false, state: 'unknown', error: 'apply_failed',
-    }));
-    pending = result.then(() => {});
-    return result;
+    } catch {
+      return {ok: false, state: 'unknown', error: 'apply_failed'};
+    }
   };
 }
