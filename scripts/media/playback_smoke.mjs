@@ -35,11 +35,14 @@ try {
     ['/prism/media/segment_policy.mjs',
       [path.join(root, 'prism/media/segment_policy.mjs'),
        'text/javascript']],
+    ['/prism/media/youtube_site_adapter.mjs',
+      [path.join(root, 'prism/media/youtube_site_adapter.mjs'),
+       'text/javascript']],
   ]);
   server = createServer(async (request, response) => {
     if (request.url === '/') {
       response.writeHead(200, {'Content-Type': 'text/html'});
-      response.end('<video id="video" src="/video.webm" preload="auto"></video>');
+      response.end('<div id="movie_player"><video class="html5-main-video" id="video" src="/video.webm" preload="auto"></video></div>');
       return;
     }
     const resource = resources.get(request.url);
@@ -94,19 +97,48 @@ try {
   const duration = await page.locator('video').evaluate(async video => {
     const {createPlaybackController} = await import(
         '/prism/media/playback_controller.mjs');
-    const controller = createPlaybackController(video);
-    controller.setContext({
-      videoId: 'AbCdEfGhI12',
+    const {inspectYouTubeWatchPage} = await import(
+        '/prism/media/youtube_site_adapter.mjs');
+    const watchURL = 'https://www.youtube.com/watch?v=AbCdEfGhI12';
+    const player = document.querySelector('#movie_player');
+    if (inspectYouTubeWatchPage(
+        'https://youtube.com.evil.test/watch?v=AbCdEfGhI12', document)) {
+      throw new Error('A lookalike origin was accepted');
+    }
+    player.classList.add('ad-showing');
+    const adSite = inspectYouTubeWatchPage(watchURL, document);
+    if (adSite?.allowPlayback !== false) {
+      throw new Error('Ad playback was not withheld');
+    }
+    const segmentContext = {
       segments: [{uuid: 'smoke', category: 'sponsor', start: 0.1, end: 2.5}],
       settings: {enabled: true},
       incognito: false,
-      allowPlayback: true,
+    };
+    const controller = createPlaybackController(video);
+    controller.setContext({
+      ...segmentContext,
+      videoId: adSite.videoId,
+      allowPlayback: adSite.allowPlayback,
     });
     const seeked = new Promise(resolve =>
       video.addEventListener('seeked', resolve, {once: true}));
     video.currentTime = 0.5;
     await seeked;
     controller.start();
+    if (video.currentTime > 0.7) {
+      throw new Error('Playback skipped during an advertisement');
+    }
+    player.classList.remove('ad-showing');
+    const site = inspectYouTubeWatchPage(watchURL, document);
+    if (site?.media !== video || !site.allowPlayback) {
+      throw new Error('Main video was not selected');
+    }
+    controller.setContext({
+      ...segmentContext,
+      videoId: site.videoId,
+      allowPlayback: site.allowPlayback,
+    });
     window.prismSmokeController = controller;
     return video.duration;
   });
