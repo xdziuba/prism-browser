@@ -172,7 +172,71 @@ try {
   assert.ok(Math.abs(result.afterUndo - 0.5) < 0.2,
             JSON.stringify(result));
   assert.deepEqual(pageErrors, []);
-  console.log(`PASS: real HTMLVideoElement skipped and undid a segment (duration ${duration}s)`);
+  await page.locator('video').evaluate(async video => {
+    const {createYouTubeWatchObserver} = await import(
+        '/prism/media/youtube_site_adapter.mjs');
+    const events = new EventTarget();
+    let route = 'https://www.youtube.com/watch?v=AbCdEfGhI12';
+    const states = [];
+    const observe = createYouTubeWatchObserver({
+      root: document,
+      events,
+      readURL: () => route,
+      onChange: state => states.push(state && {
+        videoId: state.videoId, allowed: state.allowPlayback,
+      }),
+    });
+    const latest = () => states.at(-1);
+    observe.start();
+    if (!latest()?.allowed) {
+      throw new Error('Initial media was not available');
+    }
+    events.dispatchEvent(new Event('yt-navigate-start'));
+    if (latest()?.allowed) {
+      throw new Error('Navigation did not suspend playback');
+    }
+    route = 'https://www.youtube.com/watch?v=zYxWvUtSrQ9';
+    events.dispatchEvent(new Event('yt-navigate-finish'));
+    if (latest()?.videoId !== 'zYxWvUtSrQ9' || latest().allowed) {
+      throw new Error('Reused media was enabled before new metadata');
+    }
+    video.dispatchEvent(new Event('loadedmetadata'));
+    if (!latest()?.allowed) {
+      throw new Error('New metadata did not enable playback');
+    }
+    const player = document.querySelector('#movie_player');
+    player.classList.add('ad-showing');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (latest()?.allowed) {
+      throw new Error('Advertisement class did not suspend playback');
+    }
+    player.classList.remove('ad-showing');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (!latest()?.allowed) {
+      throw new Error('Main video did not resume after advertisement');
+    }
+    events.dispatchEvent(new Event('yt-navigate-start'));
+    route = 'https://www.youtube.com/watch?v=QwErTyUiOp1';
+    const replacement = document.createElement('video');
+    replacement.className = 'html5-main-video';
+    replacement.src = '/video.webm';
+    replacement.preload = 'auto';
+    player.replaceChildren(replacement);
+    events.dispatchEvent(new Event('yt-navigate-finish'));
+    if (replacement.readyState < 1) {
+      await new Promise(resolve =>
+        replacement.addEventListener('loadedmetadata', resolve, {once: true}));
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (latest()?.videoId !== 'QwErTyUiOp1' || !latest().allowed) {
+      throw new Error('Ready replacement media remained suspended');
+    }
+    observe.stop();
+    if (latest() !== null) {
+      throw new Error('Observer did not clear state on stop');
+    }
+  });
+  console.log(`PASS: media seek, undo, ad suspension, and synthetic navigation (duration ${duration}s)`);
 } finally {
   if (browser) {
     await browser.close();

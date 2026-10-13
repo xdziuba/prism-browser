@@ -40,3 +40,147 @@ export function inspectYouTubeWatchPage(pageURL, root) {
     allowPlayback: !player.classList.contains('ad-showing'),
   };
 }
+
+export function createYouTubeWatchObserver({root, events, readURL,
+                                            onChange} = {}) {
+  if (!root?.documentElement || typeof root.querySelector !== 'function' ||
+      typeof root.addEventListener !== 'function' ||
+      typeof events?.addEventListener !== 'function' ||
+      typeof events?.removeEventListener !== 'function' ||
+      typeof readURL !== 'function' || typeof onChange !== 'function') {
+    throw new TypeError('A document, event target, URL reader, and callback are required');
+  }
+  const Observer = root.defaultView?.MutationObserver;
+  if (typeof Observer !== 'function') {
+    throw new TypeError('MutationObserver is required');
+  }
+
+  let running = false;
+  let current = undefined;
+  let awaitingMetadata = false;
+  let navigationPending = false;
+  let metadataRequiredForNextRoute = false;
+  let refreshTimer = null;
+  let watchedPlayer = null;
+  const scheduleRefresh = () => {
+    if (running && refreshTimer === null) {
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        refresh();
+      }, 50);
+    }
+  };
+  const treeObserver = new Observer(scheduleRefresh);
+  const playerObserver = new Observer(scheduleRefresh);
+
+  function watchPlayer() {
+    const player = root.querySelector('#movie_player');
+    if (player === watchedPlayer) {
+      return;
+    }
+    playerObserver.disconnect();
+    watchedPlayer = player;
+    if (player) {
+      playerObserver.observe(player, {
+        attributes: true, attributeFilter: ['class'],
+      });
+    }
+  }
+
+  function publish(next) {
+    if (current?.videoId === next?.videoId &&
+        current?.media === next?.media &&
+        current?.allowPlayback === next?.allowPlayback &&
+        current !== undefined) {
+      return;
+    }
+    current = next;
+    onChange(next);
+  }
+
+  function refresh() {
+    if (!running) {
+      return;
+    }
+    watchPlayer();
+    const snapshot = inspectYouTubeWatchPage(readURL(), root);
+    if (!snapshot) {
+      awaitingMetadata = false;
+      publish(null);
+      return;
+    }
+    const identityChanged = current?.videoId !== snapshot.videoId ||
+        current?.media !== snapshot.media;
+    if (identityChanged) {
+      const newMedia = current?.media && current.media !== snapshot.media;
+      awaitingMetadata = snapshot.media.readyState < 1 ||
+          (current?.media === snapshot.media && current !== undefined) ||
+          (metadataRequiredForNextRoute && !newMedia);
+      metadataRequiredForNextRoute = false;
+    }
+    publish({...snapshot,
+      allowPlayback: snapshot.allowPlayback && !navigationPending &&
+          !awaitingMetadata});
+  }
+
+  function onNavigateStart() {
+    navigationPending = true;
+    metadataRequiredForNextRoute = true;
+    if (current) {
+      publish({...current, allowPlayback: false});
+    }
+  }
+
+  function onNavigateFinish() {
+    navigationPending = false;
+    refresh();
+    if (current && !awaitingMetadata) {
+      metadataRequiredForNextRoute = false;
+    }
+  }
+
+  function onMetadata(event) {
+    if (event.target === current?.media) {
+      awaitingMetadata = false;
+      refresh();
+    }
+  }
+
+  return {
+    start() {
+      if (running) {
+        return;
+      }
+      running = true;
+      events.addEventListener('yt-navigate-start', onNavigateStart);
+      events.addEventListener('yt-navigate-finish', onNavigateFinish);
+      events.addEventListener('popstate', refresh);
+      root.addEventListener('loadedmetadata', onMetadata, true);
+      treeObserver.observe(root.documentElement, {
+        subtree: true, childList: true,
+      });
+      refresh();
+    },
+    stop() {
+      if (!running) {
+        return;
+      }
+      running = false;
+      treeObserver.disconnect();
+      playerObserver.disconnect();
+      watchedPlayer = null;
+      if (refreshTimer !== null) {
+        clearTimeout(refreshTimer);
+        refreshTimer = null;
+      }
+      events.removeEventListener('yt-navigate-start', onNavigateStart);
+      events.removeEventListener('yt-navigate-finish', onNavigateFinish);
+      events.removeEventListener('popstate', refresh);
+      root.removeEventListener('loadedmetadata', onMetadata, true);
+      if (current) {
+        publish(null);
+      }
+    },
+    refresh,
+  };
+}
