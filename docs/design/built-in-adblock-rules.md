@@ -1,6 +1,6 @@
 # Built-in ad blocking: bounded rule compilation
 
-Status: rule compilation and synthetic signed-candidate verification, 2026-10-13. Chromium integration is pending.
+Status: rule compilation, synthetic signed-candidate verification, and disposable dynamic-DNR activation, 2026-10-13. Chromium integration is pending.
 
 ## Decision
 
@@ -25,3 +25,9 @@ Reference: [Chrome declarativeNetRequest API](https://developer.chrome.com/docs/
 Before any remotely sourced rules can be considered, verify an envelope with a browser-pinned Ed25519 public key. The envelope contains only `keyId`, base64url-encoded raw JSON `payload`, and base64url-encoded `signature`. Verify the signature over the exact decoded payload bytes before parsing JSON. Bound the payload to 1 MiB and reject noncanonical encoding, unknown keys, malformed signatures, invalid UTF-8, unsupported rule shapes, source changes, and a version that does not advance. The trusted key map is supplied by browser-owned code, never by a page or the envelope. A successful result is only a **candidate** DNR ruleset with provenance and a content digest. On any failure, return the previous candidate unchanged with a fixed error tag.
 
 This slice uses ephemeral test keys and synthetic rules only. It does not choose a real list provider, ship a production public key, fetch updates, persist a last-known-good package, or call `updateDynamicRules`. Browser integration must later apply rule replacement in a way that preserves the previous active rules if DNR installation fails, and must handle key rotation/revocation and rollback of a bad-but-valid update. Ed25519 Web Crypto import and verification follow the [Web Cryptography Level 2 specification](https://www.w3.org/TR/WebCryptoAPI/#ed25519).
+
+## Third slice: dynamic rule replacement
+
+A dedicated Prism component will own its DNR dynamic rules. Read its current dynamic rules, then call `updateDynamicRules` once with the old IDs removed and the prepared candidate added. Chrome documents this as a single atomic operation: a rejected update leaves the old set in place. Read back the installed rule shape before reporting success; if it differs, attempt one replacement back to the previous snapshot and report an unknown state if rollback fails. Serialize overlapping replacement requests in one component instance. A disabled setting must explicitly reconcile to an empty rule set because dynamic rules persist across browser restarts and extension upgrades. Do not hand the DNR API to page content or ordinary extensions.
+
+Host tests will simulate update rejection, unexpected readback, rollback failure, and concurrent calls. A disposable extension in the existing source-built browser will exercise an actual dynamic block, failed replacement, and disable/clear using only local synthetic domains. This does not install a Prism component, select a real filter list, or prove Incognito isolation. [Chrome's DNR API](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest#method-updateDynamicRules) documents persistence and atomic update semantics.

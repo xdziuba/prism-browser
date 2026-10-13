@@ -30,6 +30,41 @@ function isDomain(value) {
         !label.endsWith('-'));
 }
 
+export function isCompiledRuleSet(rules) {
+  if (!Array.isArray(rules) || rules.length > MAX_RULES) {
+    return false;
+  }
+  const ids = new Set();
+  for (const rule of rules) {
+    const condition = rule?.condition;
+    const types = condition?.resourceTypes;
+    const excluded = condition?.excludedTopDomains;
+    if (!hasExactKeys(rule, ['id', 'priority', 'action', 'condition']) ||
+        !Number.isSafeInteger(rule.id) || rule.id < 1 ||
+        rule.id > 1_000_000 || ids.has(rule.id) || rule.priority !== 1 ||
+        !hasExactKeys(rule.action, ['type']) ||
+        rule.action.type !== 'block' ||
+        !hasExactKeys(condition, ['requestDomains', 'resourceTypes'],
+          ['excludedTopDomains']) ||
+        !Array.isArray(condition.requestDomains) ||
+        condition.requestDomains.length !== 1 ||
+        !isDomain(condition.requestDomains[0]) ||
+        !Array.isArray(types) || types.length < 1 ||
+        types.length > RESOURCE_TYPES.size ||
+        types.some(type => !RESOURCE_TYPES.has(type)) ||
+        new Set(types).size !== types.length ||
+        (excluded !== undefined &&
+          (!Array.isArray(excluded) ||
+           excluded.length > MAX_DISABLED_SITES ||
+           excluded.some(site => !isDomain(site)) ||
+           new Set(excluded).size !== excluded.length))) {
+      return false;
+    }
+    ids.add(rule.id);
+  }
+  return true;
+}
+
 export function compileAdblockRules({bundle, settings} = {}) {
   if (!isRecord(settings) || settings.enabled !== true) {
     return {rules: [], provenance: null};

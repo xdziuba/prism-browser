@@ -7,7 +7,8 @@
     "smoke:media-browser": "node scripts/media/playback_smoke.mjs",
     "test:adblock-rules": "node --test tests/blocking/*.test.mjs",
     "smoke:adblock-rules": "node scripts/blocking/rule_smoke.mjs",
-    "smoke:signed-rule-update": "node scripts/blocking/signed_update_smoke.mjs"
+    "smoke:signed-rule-update": "node scripts/blocking/signed_update_smoke.mjs",
+    "smoke:dynamic-adblock-rules": "node scripts/blocking/dynamic_rule_smoke.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
