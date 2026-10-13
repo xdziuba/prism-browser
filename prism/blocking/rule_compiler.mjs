@@ -30,6 +30,12 @@ function isDomain(value) {
         !label.endsWith('-'));
 }
 
+export function isValidDisabledSites(sites) {
+  return Array.isArray(sites) && sites.length <= MAX_DISABLED_SITES &&
+      Array.from(sites).every(isDomain) &&
+      new Set(sites).size === sites.length;
+}
+
 export function isCompiledRuleSet(rules) {
   if (!Array.isArray(rules) || rules.length > MAX_RULES) {
     return false;
@@ -53,11 +59,7 @@ export function isCompiledRuleSet(rules) {
         types.length > RESOURCE_TYPES.size ||
         types.some(type => !RESOURCE_TYPES.has(type)) ||
         new Set(types).size !== types.length ||
-        (excluded !== undefined &&
-          (!Array.isArray(excluded) ||
-           excluded.length > MAX_DISABLED_SITES ||
-           excluded.some(site => !isDomain(site)) ||
-           new Set(excluded).size !== excluded.length))) {
+        (excluded !== undefined && !isValidDisabledSites(excluded))) {
       return false;
     }
     ids.add(rule.id);
@@ -70,10 +72,7 @@ export function compileAdblockRules({bundle, settings} = {}) {
     return {rules: [], provenance: null};
   }
   const disabledSites = settings.disabledSites ?? [];
-  if (!Array.isArray(disabledSites) ||
-      disabledSites.length > MAX_DISABLED_SITES ||
-      disabledSites.some(site => !isDomain(site)) ||
-      new Set(disabledSites).size !== disabledSites.length) {
+  if (!isValidDisabledSites(disabledSites)) {
     throw new TypeError('invalid disabled sites');
   }
   if (!hasExactKeys(bundle, ['sourceId', 'version', 'rules']) ||
