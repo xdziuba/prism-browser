@@ -32,7 +32,7 @@ for (const path of [fixture, join(fixture, 'blocking'),
 }
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
   'signed_rule_update.mjs', 'startup_reconciliation.mjs',
-  'signed_package_store.mjs']) {
+  'signed_package_store.mjs', 'signed_rule_coordinator.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
@@ -54,8 +54,20 @@ const signature = new Uint8Array(await webcrypto.subtle.sign('Ed25519',
 const envelope = {keyId: 'test-key',
   payload: Buffer.from(payload).toString('base64url'),
   signature: Buffer.from(signature).toString('base64url')};
+const nextPayload = new TextEncoder().encode(JSON.stringify({
+  sourceId: 'prism.synthetic', version: '1.1.0', rules: [{
+    id: 1, destinationHost: 'newads.prism.test',
+    resourceTypes: ['script'],
+  }],
+}));
+const nextSignature = new Uint8Array(await webcrypto.subtle.sign('Ed25519',
+  pair.privateKey, nextPayload));
+const nextEnvelope = {keyId: 'test-key',
+  payload: Buffer.from(nextPayload).toString('base64url'),
+  signature: Buffer.from(nextSignature).toString('base64url')};
 writeFileSync(join(fixture, 'signed_data.mjs'),
   `export const envelope = ${JSON.stringify(envelope)};\n` +
+  `export const nextEnvelope = ${JSON.stringify(nextEnvelope)};\n` +
   `export const publicKey = new Uint8Array(${JSON.stringify([...publicKey])});\n`);
 writeFileSync(join(fixture, 'manifest.json'), JSON.stringify({
   manifest_version: 3,
@@ -75,7 +87,9 @@ writeFileSync(join(fixture, 'control.mjs'),
      './blocking/startup_reconciliation.mjs';
    import {createSignedPackageStore, SIGNED_PACKAGE_KEY} from
      './blocking/signed_package_store.mjs';
-   import {envelope, publicKey} from './signed_data.mjs';
+   import {createSignedRuleCoordinator} from
+     './blocking/signed_rule_coordinator.mjs';
+   import {envelope, nextEnvelope, publicKey} from './signed_data.mjs';
    const store = createMediaSettingsStore({storageArea: chrome.storage.local,
      incognito: chrome.extension.inIncognitoContext});
    window.prismDefaults = defaultMediaSettings;
@@ -104,7 +118,15 @@ writeFileSync(join(fixture, 'control.mjs'),
        {sourceId: 'prism.synthetic', publicKey}]]),
      dnrApi: chrome.declarativeNetRequest,
      incognito: chrome.extension.inIncognitoContext,
-   });`);
+   });
+   const coordinate = createSignedRuleCoordinator({
+     settingsStore: store, packageStore: window.prismPackageStore,
+     dnrApi: chrome.declarativeNetRequest,
+     trustedKeys: new Map([['test-key',
+       {sourceId: 'prism.synthetic', publicKey}]]),
+     incognito: chrome.extension.inIncognitoContext,
+   });
+   window.prismApplyUpdate = () => coordinate(nextEnvelope);`);
 
 const server = createServer((request, response) => {
   if (request.url === '/probe.js') {
@@ -124,6 +146,7 @@ async function openBrowser() {
     ignoreDefaultArgs: ['--disable-extensions'],
     args: ['--no-proxy-server',
       '--host-resolver-rules=MAP ads.prism.test 127.0.0.1,' +
+      'MAP newads.prism.test 127.0.0.1,' +
       'MAP blocked.prism.test 127.0.0.1,' +
       'MAP allowed.prism.test 127.0.0.1',
       `--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`],
@@ -137,12 +160,12 @@ async function openBrowser() {
   return control;
 }
 
-async function probe(host) {
+async function probe(host, resourceHost = 'ads.prism.test') {
   const page = await context.newPage();
   try {
     await page.goto(`http://${host}:${server.address().port}/`);
     try {
-      await page.addScriptTag({url: `http://ads.prism.test:${server.address().port}/probe.js`});
+      await page.addScriptTag({url: `http://${resourceHost}:${server.address().port}/probe.js`});
     } catch {
       // A blocked script is expected on one test site.
     }
@@ -205,6 +228,16 @@ try {
   if (!restored.ok || await probe('blocked.prism.test')) {
     throw new Error(`Valid package did not restore rules: ${JSON.stringify(restored)}`);
   }
+  const updated = await restarted.evaluate(async () => ({
+    result: await window.prismApplyUpdate(),
+    cache: await window.prismPackageStore.load(),
+  }));
+  if (!updated.result.ok ||
+      updated.cache.candidate?.provenance.version !== '1.1.0' ||
+      await probe('blocked.prism.test', 'newads.prism.test') ||
+      !await probe('blocked.prism.test', 'ads.prism.test')) {
+    throw new Error(`Coordinated update failed: ${JSON.stringify(updated)}`);
+  }
   const disabled = await restarted.evaluate(async () => {
     const settings = (await window.prismStore.load()).settings;
     settings.adblock.enabled = false;
@@ -218,7 +251,7 @@ try {
       disabled, cleared,
     })}`);
   }
-  console.log('PASS: signed package cache, DNR restart, tamper and disable clear');
+  console.log('PASS: signed cache, DNR restart, coordinated update, tamper and disable clear');
 } finally {
   await context?.close();
   await new Promise(resolve => server.close(resolve));
