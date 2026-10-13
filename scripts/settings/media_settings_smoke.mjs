@@ -31,6 +31,11 @@ mkdirSync(join(fixture, 'blocking'));
 mkdirSync(join(fixture, 'media'));
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
   join(fixture, 'settings/media_controls_store.mjs'));
+for (const file of ['media_controls.html', 'media_controls.css',
+  'media_controls_ui.mjs', 'media_controls_boot.mjs']) {
+  cpSync(join(repo, 'prism/settings', file),
+    join(fixture, 'settings', file));
+}
 cpSync(join(repo, 'prism/blocking/rule_compiler.mjs'),
   join(fixture, 'blocking/rule_compiler.mjs'));
 cpSync(join(repo, 'prism/media/segment_policy.mjs'),
@@ -40,6 +45,7 @@ writeFileSync(join(fixture, 'manifest.json'), JSON.stringify({
   name: 'Prism Media Settings Smoke',
   version: '0.1.0',
   permissions: ['storage'],
+  options_page: 'settings/media_controls.html',
   background: {service_worker: 'worker.js'},
   content_scripts: [{matches: ['http://settings.prism.test/*'],
     js: ['content.js'], run_at: 'document_idle'}],
@@ -100,17 +106,34 @@ async function probeContentScript() {
 try {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const control = await openBrowser();
-  const saved = await control.evaluate(async () => {
-    const settings = window.prismDefaults();
-    settings.segments.enabled = true;
-    settings.segments.categories.intro = 'manual';
-    settings.adblock.enabled = true;
-    settings.adblock.disabledSites = ['news.prism.test'];
-    return window.prismStore.save(settings);
-  });
-  if (!saved.ok) {
-    throw new Error(`Settings save failed: ${JSON.stringify(saved)}`);
+  const extensionId = new URL(control.url()).hostname;
+  const ui = await context.newPage();
+  await ui.goto(`chrome-extension://${extensionId}/settings/media_controls.html`);
+  await ui.getByRole('status').getByText('Ready').waitFor();
+  if (await ui.locator('#segments-enabled').isChecked() ||
+      await ui.locator('#adblock-enabled').isChecked()) {
+    throw new Error('Media controls did not start disabled');
   }
+  await ui.locator('#segments-enabled').check();
+  await ui.locator('#category-intro').selectOption('manual');
+  await ui.locator('#adblock-enabled').check();
+  await ui.locator('#site-input').fill('https://invalid.prism.test/path');
+  await ui.locator('#add-site').click();
+  if (!await ui.getByRole('status').textContent().then(value =>
+      value.includes('Enter a new domain')) ||
+      await ui.locator('#site-list li').count()) {
+    throw new Error('The options page accepted an invalid domain');
+  }
+  await ui.locator('#site-input').fill('News.Prism.Test');
+  await ui.locator('#site-input').press('Enter');
+  await ui.locator('#site-input').fill('news.prism.test');
+  await ui.locator('#add-site').click();
+  if (await ui.locator('#site-list li').count() !== 1) {
+    throw new Error('The options page accepted a duplicate domain');
+  }
+  await ui.locator('#save-settings').click();
+  await ui.getByRole('status').getByText(/Saved/).waitFor();
+  await ui.close();
   const access = await probeContentScript();
   if (access !== 'denied') {
     throw new Error(`Content script storage access: ${access}`);
@@ -130,7 +153,45 @@ try {
   if (restartedAccess !== 'denied') {
     throw new Error(`Content script storage after restart: ${restartedAccess}`);
   }
-  console.log('PASS: trusted storage, content-script denial, restart persistence');
+  const restartedId = new URL(restartedControl.url()).hostname;
+  const reopened = await context.newPage();
+  await reopened.setViewportSize({width: 420, height: 900});
+  await reopened.emulateMedia({colorScheme: 'dark'});
+  await reopened.goto(`chrome-extension://${restartedId}/settings/media_controls.html`);
+  await reopened.getByRole('status').getByText('Ready').waitFor();
+  const uiState = {
+    segments: await reopened.locator('#segments-enabled').isChecked(),
+    intro: await reopened.locator('#category-intro').inputValue(),
+    adblock: await reopened.locator('#adblock-enabled').isChecked(),
+    site: await reopened.locator('#site-list li span').allTextContents(),
+    overflow: await reopened.evaluate(() =>
+      document.documentElement.scrollWidth > window.innerWidth),
+  };
+  if (!uiState.segments || uiState.intro !== 'manual' ||
+      !uiState.adblock || uiState.site.join(',') !== 'news.prism.test' ||
+      uiState.overflow) {
+    throw new Error(`Options page did not restore: ${JSON.stringify(uiState)}`);
+  }
+  await reopened.screenshot({path: join(repo,
+    'docs/evidence/media-controls-linux-20261013.png'), fullPage: true});
+  await reopened.getByRole('button', {name: 'Remove news.prism.test'}).click();
+  await reopened.locator('#save-settings').click();
+  const removed = await restartedControl.evaluate(() => window.prismStore.load());
+  if (removed.error || removed.settings.adblock.disabledSites.length !== 0) {
+    throw new Error(`Excluded site removal failed: ${JSON.stringify(removed)}`);
+  }
+  await reopened.close();
+  await restartedControl.evaluate(() => chrome.storage.local.set({
+    prismMediaSettingsV1: {version: 2},
+  }));
+  const damaged = await context.newPage();
+  await damaged.goto(`chrome-extension://${restartedId}/settings/media_controls.html`);
+  await damaged.getByRole('status').getByText(/unavailable/).waitFor();
+  if (!await damaged.locator('#save-settings').isDisabled()) {
+    throw new Error('Damaged settings did not disable the options form');
+  }
+  await damaged.close();
+  console.log('PASS: media controls UI, validation/removal, failed-load lock, trusted storage, restart and narrow dark view');
 } finally {
   await context?.close();
   await new Promise(resolve => server.close(resolve));

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prism · Media controls</title>
+  <link rel="stylesheet" href="media_controls.css">
+  <script type="module" src="media_controls_boot.mjs"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="page-header">
+      <p class="eyebrow">Prism Browser</p>
+      <h1>Media controls</h1>
+      <p>Choose how video segments and advertising requests are handled.</p>
+    </header>
+
+    <form id="media-form">
+      <section class="panel" aria-labelledby="segments-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="segments-title">Video segments</h2>
+            <p>Skip or offer a manual action for marked parts of a video.</p>
+          </div>
+          <label class="switch-label" for="segments-enabled">
+            <input id="segments-enabled" type="checkbox">
+            <span>Enabled</span>
+          </label>
+        </div>
+        <fieldset class="categories">
+          <legend>Category actions</legend>
+          <div class="category"><label for="category-sponsor">Sponsorship</label><select id="category-sponsor" data-category="sponsor"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-intro">Intro</label><select id="category-intro" data-category="intro"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-outro">Outro</label><select id="category-outro" data-category="outro"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-interaction">Interaction</label><select id="category-interaction" data-category="interaction"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-selfpromo">Self-promotion</label><select id="category-selfpromo" data-category="selfpromo"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-preview">Preview</label><select id="category-preview" data-category="preview"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-music_offtopic">Off-topic music</label><select id="category-music_offtopic" data-category="music_offtopic"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+          <div class="category"><label for="category-filler">Filler</label><select id="category-filler" data-category="filler"><option value="off">Off</option><option value="manual">Ask to skip</option><option value="auto">Skip automatically</option></select></div>
+        </fieldset>
+      </section>
+
+      <section class="panel" aria-labelledby="adblock-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="adblock-title">Ad blocking</h2>
+            <p>Apply trusted network rules and choose sites to exclude.</p>
+          </div>
+          <label class="switch-label" for="adblock-enabled">
+            <input id="adblock-enabled" type="checkbox">
+            <span>Enabled</span>
+          </label>
+        </div>
+        <div class="site-editor">
+          <label for="site-input">Sites where blocking is off</label>
+          <div class="site-entry">
+            <input id="site-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="example.com">
+            <button id="add-site" type="button">Add site</button>
+          </div>
+          <p class="hint">Enter a domain only, without https:// or a path.</p>
+          <ul id="site-list" class="site-list" aria-label="Excluded sites"></ul>
+        </div>
+      </section>
+
+      <div class="save-row">
+        <p id="form-status" role="status" aria-live="polite">Loading settings…</p>
+        <button id="save-settings" type="submit">Save settings</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>
