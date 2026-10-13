@@ -50,3 +50,18 @@ unpacked extension. A test-only worker may supply synthetic segments, but no
 test key, segment response, or public API origin enters the product tree. This
 validates extension plumbing and content behavior only; native component
 registration still requires the later Chromium patch and relink.
+
+## Stable component identity
+
+The pinned `ComponentLoader::GenerateId` requires a manifest `key` field and
+derives the extension ID from its public key bytes. Its allowlist checks that
+ID before loading the component. Assign this prototype a dedicated 2048-bit
+RSA SPKI public key and pin the resulting ID
+`fblecelimojmepieoalinhoeakdfffld`. The private half was created only in
+process memory to derive the public half and discarded; it is neither a rule
+signing key nor a credential in the repository. Bundled resources do not need
+CRX signing for delivery. A later product identity change would migrate the
+extension's storage and options URL, so manifest identity should be treated as
+stable from this point. Validate the derivation against the pinned browser's
+observed extension ID before adding an allowlist entry. No upstream file is
+changed in this identity slice.

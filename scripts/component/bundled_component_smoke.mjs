@@ -23,6 +23,7 @@ if (actual !== expected) {
 }
 
 const videoId = 'abcdefghijk';
+const componentId = 'fblecelimojmepieoalinhoeakdfffld';
 const root = mkdtempSync(join(tmpdir(), 'prism-bundled-component-'));
 const videoPath = join(root, 'synthetic.webm');
 execFileSync('ffmpeg', [
@@ -75,6 +76,9 @@ async function run(fixture, name, synthetic) {
     const worker = context.serviceWorkers()[0] ??
       await context.waitForEvent('serviceworker', {timeout: 10000});
     const extensionId = new URL(worker.url()).hostname;
+    if (extensionId !== componentId) {
+      throw new Error(`Component identity changed: ${extensionId}`);
+    }
     const options = await context.newPage();
     await options.goto(
       `chrome-extension://${extensionId}/settings/media_controls.html`);

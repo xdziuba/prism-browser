@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Prism Media Controls",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnz+iahVFmGvEYHovJApykzcIQV+NZXuEU9dRIJgLEjhWegzwsXwpV6Vhg/uCatx5lD1hVtKlupCNaRmHSNGN1WPpdNGjPtTQSw9qKLRziUBE6FlUmJpouH04k9pjiQeVLtvgrirmltS5S13dwa8pzVprsLmvbeCzqFIX6gshehxdUA7gkFJ7zI3F2K17hGeKdPLgMY197v9StEUDZfTSh/ChrYzem64kpP0kdR6sLgyR5kmRf3a48Fu9kDmwk3QHqhzjW5H0bvsrfjS+SEY8TqmtFjDr2CnCAIW3eW8mn0W/H9ZB5Vr4Ke4Q2XTqD4gkAxn5qe0s352Yva85emzvGQIDAQAB",
   "incognito": "not_allowed",
   "permissions": ["storage", "declarativeNetRequest"],
   "options_page": "settings/media_controls.html",
