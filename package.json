@@ -11,6 +11,7 @@
     "smoke:dynamic-adblock-rules": "node scripts/blocking/dynamic_rule_smoke.mjs",
     "test:media-settings": "node --test tests/settings/*.test.mjs",
     "test:component-worker": "node --test tests/component/*.test.mjs",
+    "smoke:bundled-component": "node scripts/component/bundled_component_smoke.mjs",
     "smoke:media-settings": "node scripts/settings/media_settings_smoke.mjs",
     "smoke:adblock-startup": "node scripts/blocking/startup_reconciliation_smoke.mjs",
     "smoke:segment-message": "node scripts/media/segment_message_smoke.mjs"

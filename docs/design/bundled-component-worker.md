@@ -25,3 +25,28 @@ rules. Do not store page content, credentials, raw responses, or video IDs.
 The native component manifest, resource registration, and built-browser runtime
 remain unverified until a later small upstream patch and Chromium relink can
 run without competing for the user's laptop memory.
+
+## Staged manifest and isolated content session
+
+Stage a Manifest V3 component resource tree with only `storage` and
+`declarativeNetRequest` permissions, the existing local options page, an
+explicit `not_allowed` Incognito mode, and content-script matches limited to
+the four accepted HTTPS YouTube hosts. Match all paths on those hosts so a
+single-page navigation from the home page into `/watch` can start a session;
+the worker still rejects lookups outside a valid watch route. Expose only the
+five content-side Prism media modules needed for dynamic imports; the worker
+lookup and rule modules are not web-accessible. No host permission for a
+segment API is added before its data-use decision.
+
+The top-frame isolated content script creates one watch observer and one
+transient control surface. It sends only a fixed lookup type and finite media
+duration, never a URL, video ID, page text, or settings. Its controls call
+local skip/undo methods and are removed on page hide. It makes no direct
+network request. Imports and session creation fail closed; no test marker is
+written into the page. The worker remains the sole owner of trust decisions.
+
+Use the source-built browser to smoke-test this resource tree as a disposable
+unpacked extension. A test-only worker may supply synthetic segments, but no
+test key, segment response, or public API origin enters the product tree. This
+validates extension plumbing and content behavior only; native component
+registration still requires the later Chromium patch and relink.
