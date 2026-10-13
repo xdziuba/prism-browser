@@ -87,7 +87,8 @@ export function createPlaybackController(media, onDecision = () => {}) {
   }
 
   function undo() {
-    if (!lastAutoDecision || !context) {
+    if (!running || !lastAutoDecision || !context ||
+        context.allowPlayback !== true || context.incognito !== false) {
       return false;
     }
     const target = undoSegmentTarget(
@@ -109,7 +110,8 @@ export function createPlaybackController(media, onDecision = () => {}) {
   }
 
   function skipManual() {
-    if (!manualDecision || !context ||
+    if (!running || !manualDecision || !context ||
+        context.allowPlayback !== true || context.incognito !== false ||
         manualDecision.videoId !== context.videoId) {
       return false;
     }
@@ -145,6 +147,21 @@ export function createPlaybackController(media, onDecision = () => {}) {
       }
     },
     setContext,
+    setPlaybackAllowed(allowed) {
+      if (!context) {
+        return null;
+      }
+      context.allowPlayback = allowed === true;
+      if (!context.allowPlayback) {
+        clearManual();
+        if (lastAutoDecision) {
+          lastAutoDecision = null;
+          onDecision(null);
+        }
+        return null;
+      }
+      return evaluate();
+    },
     evaluate,
     undo,
     skipManual,

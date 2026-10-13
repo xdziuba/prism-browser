@@ -102,3 +102,28 @@ test('browser state must explicitly permit playback and resets per video', () =>
   assert.equal(controller.undo(), false);
   controller.stop();
 });
+
+test('temporary ad suspension preserves an undone segment', () => {
+  const media = new FakeMedia();
+  const controller = createPlaybackController(media);
+  controller.setContext(context());
+  controller.start();
+  media.moveTo(12);
+  assert.equal(media.currentTime, 20);
+  assert.equal(controller.undo(), true);
+  assert.equal(media.currentTime, 12);
+
+  controller.setPlaybackAllowed(false);
+  media.moveTo(13);
+  assert.equal(media.currentTime, 13);
+  assert.equal(controller.undo(), false);
+  controller.setPlaybackAllowed(true);
+  assert.equal(media.currentTime, 13);
+
+  media.moveTo(21);
+  media.moveTo(12);
+  assert.equal(media.currentTime, 20);
+  controller.setPlaybackAllowed(false);
+  assert.equal(controller.undo(), false);
+  controller.stop();
+});

@@ -134,11 +134,7 @@ try {
     if (site?.media !== video || !site.allowPlayback) {
       throw new Error('Main video was not selected');
     }
-    controller.setContext({
-      ...segmentContext,
-      videoId: site.videoId,
-      allowPlayback: site.allowPlayback,
-    });
+    controller.setPlaybackAllowed(site.allowPlayback);
     window.prismSmokeController = controller;
     return video.duration;
   });
@@ -162,7 +158,12 @@ try {
     const undone = window.prismSmokeController.undo();
     await new Promise(resolve => video.addEventListener('seeked', resolve,
                                                         {once: true}));
+    const player = document.querySelector('#movie_player');
+    player.classList.add('ad-showing');
+    window.prismSmokeController.setPlaybackAllowed(false);
     video.dispatchEvent(new Event('timeupdate'));
+    player.classList.remove('ad-showing');
+    window.prismSmokeController.setPlaybackAllowed(true);
     const afterUndo = video.currentTime;
     window.prismSmokeController.stop();
     return {undone, afterUndo};

@@ -66,6 +66,8 @@ The second slice added `prism/media/playback_controller.mjs`, a one-video adapte
 
 The third slice added `prism/media/youtube_site_adapter.mjs`, limited to exact HTTPS YouTube `/watch` routes and the main player video element. It rejects duplicate or invalid video IDs and lookalike hosts, and withholds seeking while the player's `ad-showing` class is present. `npm run test:segment-policy` passed eleven host tests, including strict route cases. The source-built browser smoke test passed again with a synthetic YouTube-like DOM: an advertisement state produced no seek, then the main-video state sought across the segment and undo returned to the prior time. The test does not access live YouTube or establish compatibility with its current DOM, single-page navigation, Shorts, or Music playback. The module is loaded over local HTTP rather than bundled into the browser; no Chromium source, build output, or upstream patch changed.
 
+The fourth slice separated temporary playback availability from video identity in `prism/media/playback_controller.mjs`. An advertisement or other non-video state can now suspend automatic seeks and manual/undo controls without clearing the undo suppression for the current segment. A true context replacement still resets it. `npm run test:segment-policy` passed twelve host tests, including suspension across an undo. The local source-built Chromium smoke passed after exercising the availability toggle on a real media element. This is not a live YouTube advertisement test; the component still is not bundled, and no Chromium build or relink was run.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
