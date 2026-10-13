@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test:extension-persistence": "node scripts/phase0/extension_persistence.mjs",
-    "test:segment-policy": "node --test tests/media/segment_policy.test.mjs"
+    "test:segment-policy": "node --test tests/media/*.test.mjs",
+    "smoke:media-browser": "node scripts/media/playback_smoke.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0"
