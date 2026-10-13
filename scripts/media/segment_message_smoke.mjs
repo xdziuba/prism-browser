@@ -33,7 +33,8 @@ for (const path of [fixture, join(fixture, 'media'),
 }
 for (const file of ['segment_message_bridge.mjs', 'segment_lookup.mjs',
   'segment_policy.mjs', 'youtube_site_adapter.mjs',
-  'watch_playback_session.mjs', 'playback_controller.mjs']) {
+  'watch_playback_session.mjs', 'playback_controller.mjs',
+  'playback_controls.mjs']) {
   cpSync(join(repo, 'prism/media', file), join(fixture, 'media', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
@@ -77,20 +78,32 @@ writeFileSync(join(fixture, 'worker.mjs'),
    });`);
 writeFileSync(join(fixture, 'content.js'),
   `if (new URL(location.href).searchParams.has('playback')) {
-     import(chrome.runtime.getURL('media/watch_playback_session.mjs'))
-       .then(({createWatchPlaybackSession}) => {
-         const session = createWatchPlaybackSession({
+     Promise.all([
+       import(chrome.runtime.getURL('media/watch_playback_session.mjs')),
+       import(chrome.runtime.getURL('media/playback_controls.mjs')),
+     ]).then(([{createWatchPlaybackSession}, {createPlaybackControls}]) => {
+         let session;
+         const controls = createPlaybackControls({document,
+           onSkip: () => session?.skipManual(),
+           onUndo: () => session?.undo(),
+         });
+         session = createWatchPlaybackSession({
            root: document, events: window, readURL: () => location.href,
            requestSegments: duration => chrome.runtime.sendMessage({
              type: 'prism.media.lookup', duration,
            }),
            onDecision: decision => {
+             controls.show(decision);
              document.documentElement.dataset.prismDecision =
                JSON.stringify(decision);
            },
            incognito: chrome.extension.inIncognitoContext,
          });
          session.start();
+         window.addEventListener('pagehide', () => {
+           session.stop();
+           controls.stop();
+         }, {once: true});
          document.documentElement.dataset.prismSession = 'ready';
        }).catch(error => {
          document.documentElement.dataset.prismSession = error.message;
@@ -144,7 +157,7 @@ try {
   });
   await context.route('https://www.youtube.com/**', route =>
     route.fulfill({status: 200, contentType: 'text/html',
-      body: route.request().url().includes('playback=1') ?
+      body: route.request().url().includes('playback=') ?
         `<!doctype html><title>Synthetic playback</title>
          <div id="movie_player"><video class="html5-main-video"
          src="data:video/webm;base64,${videoData}" preload="auto"></video></div>` :
@@ -205,9 +218,14 @@ try {
     if (decision?.kind !== 'auto' || decision.videoId !== videoId) {
       throw new Error(`Unexpected playback decision: ${JSON.stringify(decision)}`);
     }
+    await playback.locator('[data-prism-media-control] button',
+      {hasText: 'Undo skip'}).waitFor();
     await playback.locator('#movie_player').evaluate(player =>
       player.classList.add('ad-showing'));
     await playback.waitForTimeout(100);
+    if (await playback.locator('[data-prism-media-control]').count()) {
+      throw new Error('Playback control remained visible during an ad');
+    }
     await playback.locator('video').evaluate(video => {
       video.currentTime = 0.7;
       video.dispatchEvent(new Event('timeupdate'));
@@ -223,10 +241,72 @@ try {
     await playback.waitForFunction(() =>
       document.querySelector('video').currentTime > 2.4,
     null, {timeout: 10000});
+    await playback.getByRole('button', {name: 'Undo skip'}).click();
+    await playback.waitForFunction(() =>
+      document.querySelector('video').currentTime < 1);
+    await playback.waitForTimeout(100);
+    if (await playback.locator('video').evaluate(video =>
+        video.currentTime) > 1 ||
+        await playback.locator('[data-prism-media-control]').count()) {
+      throw new Error('Undo did not suppress immediate repeat or hide control');
+    }
   } finally {
     await playback.close();
   }
-  console.log('PASS: browser sender validation, synthetic lookup, disable, playback seek and ad suspension');
+  const manualEnabled = await control.evaluate(async () => {
+    const settings = (await window.prismStore.load()).settings;
+    settings.segments.categories.sponsor = 'manual';
+    return window.prismStore.save(settings);
+  });
+  if (!manualEnabled.ok) throw new Error('Could not set manual category');
+  const manualPage = await context.newPage();
+  try {
+    await manualPage.goto(
+      `https://www.youtube.com/watch?v=${videoId}&playback=manual`);
+    await manualPage.waitForFunction(() =>
+      document.documentElement.dataset.prismSession === 'ready');
+    await manualPage.waitForFunction(() =>
+      document.querySelector('video')?.readyState >= 1);
+    await manualPage.locator('video').evaluate(video => {
+      video.currentTime = 0.7;
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    await manualPage.getByRole('button',
+      {name: 'Skip sponsor segment'}).click();
+    await manualPage.waitForFunction(() =>
+      document.querySelector('video').currentTime > 2.4);
+    if (await manualPage.locator('[data-prism-media-control]').count()) {
+      throw new Error('Manual skip control remained after activation');
+    }
+  } finally {
+    await manualPage.close();
+  }
+  const disabledAgain = await control.evaluate(async () => {
+    const settings = (await window.prismStore.load()).settings;
+    settings.segments.enabled = false;
+    return window.prismStore.save(settings);
+  });
+  if (!disabledAgain.ok) throw new Error('Could not disable controls');
+  const disabledPage = await context.newPage();
+  try {
+    await disabledPage.goto(
+      `https://www.youtube.com/watch?v=${videoId}&playback=disabled`);
+    await disabledPage.waitForFunction(() =>
+      document.documentElement.dataset.prismSession === 'ready');
+    await disabledPage.waitForFunction(() =>
+      document.querySelector('video')?.readyState >= 1);
+    await disabledPage.locator('video').evaluate(video => {
+      video.currentTime = 0.7;
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    await disabledPage.waitForTimeout(150);
+    if (await disabledPage.locator('[data-prism-media-control]').count()) {
+      throw new Error('Disabled media controls rendered a button');
+    }
+  } finally {
+    await disabledPage.close();
+  }
+  console.log('PASS: browser sender validation, synthetic lookup, auto/undo and manual controls, ad suspension');
 } finally {
   await context?.close();
   rmSync(root, {recursive: true, force: true});
