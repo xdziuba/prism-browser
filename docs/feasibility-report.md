@@ -56,6 +56,12 @@ The page-context redactor could leak a credential value from quoted assignments 
 
 The user also requested first-party SponsorBlock functionality with configurable settings and a built-in ad blocker. `docs/design/built-in-media-controls.md` records the staged approach and distribution, privacy, and YouTube compatibility gates. No SponsorBlock code, ad-blocking rules, or Chromium integration was added in this planning slice.
 
+## Lightweight built-in media policy foundation, 2026-10-13
+
+`prism/media/segment_policy.mjs` is a Prism-owned, dependency-free policy module for SponsorBlock-compatible segment data. It computes a four-hex-character SHA-256 lookup prefix, selects only the exact requested video ID from a prefix response, rejects malformed or oversized data, applies opt-in category settings, keeps Incognito off, respects manual segments when proposing automatic seeks, and bounds undo to the same video and a recent seek destination. No SponsorBlock source code, API response, database, or filter rules were imported. The module performs no network request and cannot affect playback until wired to a browser component.
+
+`npm run test:segment-policy` passed six host tests covering the prefix, exact-ID response selection, malformed/ambiguous data, default and Incognito behavior, overlapping manual/automatic ranges, and undo scope. `node --check` passed for the module and test; `git diff --check` passed. No Chromium source changed and no browser build was run, to conserve RAM while the user works on this host. Browser playback, settings integration, hosted API terms, actual Store extension version change, Windows build, OpenAI API call, and the separate built-in ad blocker remain unverified or unimplemented as applicable.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.

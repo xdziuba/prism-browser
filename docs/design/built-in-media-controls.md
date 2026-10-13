@@ -1,6 +1,6 @@
 # Planned built-in media controls
 
-Status: product requirement captured 2026-10-13; implementation architecture and distribution terms require a later decision before code import.
+Status: product requirement captured 2026-10-13; a Prism-owned segment-policy foundation is implemented without importing upstream code. Browser integration and distribution terms remain open.
 
 ## User requirement
 
@@ -12,6 +12,12 @@ Prism should ship SponsorBlock functionality as part of the browser, with settin
 2. Pin an upstream SponsorBlock revision. Prototype it as a Chromium **component extension bundled with Prism**, not a Store-installed extension. Chromium describes component extensions as browser features bundled with the binary, normally absent from `chrome://extensions`; this provides an isolated renderer and a small upstream patch surface. The user-facing controls belong in Prism settings: global enable, category-specific auto-skip/manual/disabled behavior, an undo action, and per-site or per-channel overrides as supported by the pinned upstream version. Confirm which settings can be mapped without forking large parts of SponsorBlock. See [Chromium's component-extension design](https://chromium.googlesource.com/chromium/src/+/HEAD/extensions/docs/component_extensions.md).
 3. Keep the SponsorBlock request path scoped to video segment lookups, with no browser cookies or AI credentials. Prefer the upstream [hashed-prefix lookup](https://github.com/ajayyy/SponsorBlock/wiki/K-Anonymity) so a lookup need not reveal the exact video ID. Validate response bounds, category settings, timeline changes, seek/undo, SPA navigation, and disabled/incognito behavior in the built browser.
 4. Implement ad blocking as a separate Prism-owned browser feature with local filter rules, explicit on/off and per-site controls, rule provenance and updates, and a way to diagnose broken pages. Preserve ordinary Chromium extension compatibility. Test ordinary ad resources, YouTube playback, account states, and any anti-adblock interstitial on each pinned Chromium and rule-set revision. Treat a detected blocker or broken playback as a failed compatibility test and adjust rules after diagnosis. Do not advertise an undetectable mode.
+
+## First implementation slice: segment policy
+
+Build a Prism-owned, dependency-free policy module before wiring network access or injecting code into YouTube. It computes a four-hex-character SHA-256 prefix from a validated 11-character video ID. It accepts only a validated SponsorBlock segment response for that exact video ID, known category names, finite start/end times, and bounded entry counts. For a hash-prefix response, never let another candidate's segments affect playback. The policy is disabled by default, including in Incognito. When enabled, only `sponsor` defaults to automatic skipping; every other category defaults to off until configured. Manual segments can be offered to the user and take precedence over an overlapping automatic skip. Consecutive automatic ranges may be merged, but a manual range stops a proposed seek. An undo target is valid only for the same video and shortly after the skip destination. The future playback adapter must consume each undo once and suppress immediate re-skipping after undo.
+
+The policy code is independent of SponsorBlock's GPL source, and its host tests use synthetic responses. This does not yet fetch the API, play or modify a video, appear in Prism settings, or satisfy the requested browser integration. A later slice will connect it through a browser-bundled component with a native settings surface and will test actual behavior. No full Chromium build is needed for this slice.
 
 ## Phase and patch boundaries
 
