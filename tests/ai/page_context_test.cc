@@ -176,11 +176,55 @@ void TestFindUsesRedactedSnapshot() {
           "find matches should be bounded");
 }
 
+void TestStructuredSecretRedaction() {
+  PageContextInput input;
+  input.tab_id = 5;
+  input.title = "API_KEY = \"TITLE_SENTINEL\"";
+  ContextNode text;
+  text.node_id = 1;
+  text.visible = true;
+  text.visible_text =
+      "api_key=\"DOUBLE_SENTINEL\" and access_token : 'SINGLE_SENTINEL'\n"
+      "{\"refresh_token\" : \"JSON_SENTINEL\", \"id_token\":\"ID_SENTINEL\"}\n"
+      "Proxy-Authorization : Basic HEADER_SENTINEL\n"
+      "Cookie : sid=COOKIE_SENTINEL\n"
+      "inline Bearer \"BEARER_SENTINEL\"\n"
+      "password : \"ESCAPED\\\"QUOTE_SENTINEL\"\n"
+      "client_secret='UNCLOSED_SENTINEL\n"
+      "public_api_key=public-value";
+  input.nodes.push_back(text);
+  ContextNode button;
+  button.node_id = 2;
+  button.visible = true;
+  button.interactive = true;
+  button.role = "button";
+  button.label = "session_token : \"LABEL_SENTINEL\"";
+  input.nodes.push_back(button);
+
+  PageContextExtractor extractor;
+  const PageContextSnapshot snapshot = extractor.Extract(input);
+  const std::string combined =
+      snapshot.title + snapshot.visible_text + snapshot.elements.front().label;
+  for (const char* secret :
+       {"TITLE_SENTINEL", "DOUBLE_SENTINEL", "SINGLE_SENTINEL", "JSON_SENTINEL",
+        "ID_SENTINEL", "HEADER_SENTINEL", "COOKIE_SENTINEL", "BEARER_SENTINEL",
+        "QUOTE_SENTINEL", "UNCLOSED_SENTINEL", "LABEL_SENTINEL"}) {
+    Require(combined.find(secret) == std::string::npos,
+            "structured credential values must be redacted");
+  }
+  Require(snapshot.visible_text.find("public_api_key=public-value") !=
+              std::string::npos,
+          "a longer lookalike field name must not be changed");
+  Require(FindInSnapshot(snapshot, "DOUBLE_SENTINEL").matches.empty(),
+          "redacted values must not be searchable");
+}
+
 }  // namespace
 
 int main() {
   TestRedactionAndReferences();
   TestLimitsAndJwt();
   TestFindUsesRedactedSnapshot();
+  TestStructuredSecretRedaction();
   std::cout << "page_context tests passed\n";
 }

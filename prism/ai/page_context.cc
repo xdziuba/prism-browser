@@ -58,6 +58,40 @@ bool IsBase64Url(char value) {
   return std::isalnum(ch) || ch == '_' || ch == '-';
 }
 
+bool IsHorizontalWhitespace(char value) {
+  return value == ' ' || value == '\t';
+}
+
+bool IsQuote(char value) {
+  return value == '"' || value == '\'';
+}
+
+std::size_t SecretValueEnd(std::string_view text, std::size_t start) {
+  if (start >= text.size()) {
+    return start;
+  }
+  if (IsQuote(text[start])) {
+    const char quote = text[start];
+    std::size_t cursor = start + 1;
+    while (cursor < text.size()) {
+      if (text[cursor] == '\\' && cursor + 1 < text.size()) {
+        cursor += 2;
+      } else if (text[cursor++] == quote) {
+        return cursor;
+      }
+    }
+    return text.size();
+  }
+  std::size_t cursor = start;
+  while (cursor < text.size() &&
+         !std::isspace(static_cast<unsigned char>(text[cursor])) &&
+         text[cursor] != '&' && text[cursor] != ',' && text[cursor] != ';' &&
+         text[cursor] != '}' && text[cursor] != ']' && !IsQuote(text[cursor])) {
+    ++cursor;
+  }
+  return cursor;
+}
+
 std::size_t JwtEnd(std::string_view text, std::size_t start) {
   if (start > 0 && IsTokenChar(text[start - 1])) {
     return start;
@@ -85,20 +119,22 @@ std::size_t JwtEnd(std::string_view text, std::size_t start) {
 }
 
 std::string RedactInline(std::string_view text) {
-  constexpr std::array<std::string_view, 5> kSecretKeys = {
-      "session_token", "access_token", "api_key", "sessionid", "jwt"};
+  constexpr std::array<std::string_view, 12> kSecretKeys = {
+      "session_token", "access_token", "refresh_token", "id_token",
+      "client_secret", "private_key",  "api_key",       "sessionid",
+      "authorization", "password",     "cookie",        "jwt"};
   std::string result;
   result.reserve(text.size());
   for (std::size_t i = 0; i < text.size();) {
     if ((i == 0 || !IsTokenChar(text[i - 1])) &&
-        StartsWithInsensitive(text, i, "bearer ")) {
+        StartsWithInsensitive(text, i, "bearer") && i + 6 < text.size() &&
+        IsHorizontalWhitespace(text[i + 6])) {
       result.append("Bearer [redacted]");
-      i += 7;
-      while (i < text.size() &&
-             !std::isspace(static_cast<unsigned char>(text[i])) &&
-             text[i] != '"' && text[i] != '\'') {
+      i += 6;
+      while (i < text.size() && IsHorizontalWhitespace(text[i])) {
         ++i;
       }
+      i = SecretValueEnd(text, i);
       continue;
     }
     bool replaced = false;
@@ -107,19 +143,27 @@ std::string RedactInline(std::string_view text) {
           !StartsWithInsensitive(text, i, key)) {
         continue;
       }
-      const std::size_t separator = i + key.size();
+      std::size_t separator = i + key.size();
+      if (i > 0 && IsQuote(text[i - 1]) && separator < text.size() &&
+          text[separator] == text[i - 1]) {
+        ++separator;
+      }
+      while (separator < text.size() &&
+             IsHorizontalWhitespace(text[separator])) {
+        ++separator;
+      }
       if (separator >= text.size() ||
           (text[separator] != '=' && text[separator] != ':')) {
         continue;
       }
-      result.append(text.substr(i, key.size() + 1));
-      result.append("[redacted]");
-      i = separator + 1;
-      while (i < text.size() &&
-             !std::isspace(static_cast<unsigned char>(text[i])) &&
-             text[i] != '&' && text[i] != '"' && text[i] != '\'') {
-        ++i;
+      std::size_t value_start = separator + 1;
+      while (value_start < text.size() &&
+             IsHorizontalWhitespace(text[value_start])) {
+        ++value_start;
       }
+      result.append(text.substr(i, separator - i + 1));
+      result.append("[redacted]");
+      i = SecretValueEnd(text, value_start);
       replaced = true;
       break;
     }
@@ -140,7 +184,7 @@ std::string RedactInline(std::string_view text) {
 
 std::string RedactKnownSecrets(std::string_view text) {
   constexpr std::array<std::string_view, 4> kHeaders = {
-      "authorization:", "proxy-authorization:", "cookie:", "set-cookie:"};
+      "authorization", "proxy-authorization", "cookie", "set-cookie"};
   std::string result;
   for (std::size_t start = 0; start < text.size();) {
     const std::size_t end = text.find('\n', start);
@@ -154,7 +198,14 @@ std::string RedactKnownSecrets(std::string_view text) {
     }
     bool header = false;
     for (std::string_view prefix : kHeaders) {
-      header |= StartsWithInsensitive(line, first, prefix);
+      if (!StartsWithInsensitive(line, first, prefix)) {
+        continue;
+      }
+      std::size_t colon = first + prefix.size();
+      while (colon < line.size() && IsHorizontalWhitespace(line[colon])) {
+        ++colon;
+      }
+      header |= colon < line.size() && line[colon] == ':';
     }
     result.append(header ? "[redacted header]" : RedactInline(line));
     if (end == std::string_view::npos) {
