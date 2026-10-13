@@ -1,6 +1,6 @@
 # Built-in ad blocking: bounded rule compilation
 
-Status: first isolated implementation slice, 2026-10-13. Chromium integration is pending.
+Status: rule compilation and synthetic signed-candidate verification, 2026-10-13. Chromium integration is pending.
 
 ## Decision
 
@@ -19,3 +19,9 @@ The first rules are synthetic test data only. This is not a useful filter list y
 - No remote rules or update endpoint are included in this slice. A future update path needs signature or other trusted distribution, atomic activation, and rollback tests.
 
 Reference: [Chrome declarativeNetRequest API](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest).
+
+## Second slice: signed candidate updates
+
+Before any remotely sourced rules can be considered, verify an envelope with a browser-pinned Ed25519 public key. The envelope contains only `keyId`, base64url-encoded raw JSON `payload`, and base64url-encoded `signature`. Verify the signature over the exact decoded payload bytes before parsing JSON. Bound the payload to 1 MiB and reject noncanonical encoding, unknown keys, malformed signatures, invalid UTF-8, unsupported rule shapes, source changes, and a version that does not advance. The trusted key map is supplied by browser-owned code, never by a page or the envelope. A successful result is only a **candidate** DNR ruleset with provenance and a content digest. On any failure, return the previous candidate unchanged with a fixed error tag.
+
+This slice uses ephemeral test keys and synthetic rules only. It does not choose a real list provider, ship a production public key, fetch updates, persist a last-known-good package, or call `updateDynamicRules`. Browser integration must later apply rule replacement in a way that preserves the previous active rules if DNR installation fails, and must handle key rotation/revocation and rollback of a bad-but-valid update. Ed25519 Web Crypto import and verification follow the [Web Cryptography Level 2 specification](https://www.w3.org/TR/WebCryptoAPI/#ed25519).

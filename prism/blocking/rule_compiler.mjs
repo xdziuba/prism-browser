@@ -45,7 +45,8 @@ export function compileAdblockRules({bundle, settings} = {}) {
       typeof bundle.sourceId !== 'string' ||
       !/^[a-z][a-z0-9._-]{0,63}$/.test(bundle.sourceId) ||
       typeof bundle.version !== 'string' ||
-      !/^\d+\.\d+\.\d+$/.test(bundle.version) ||
+      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(
+        bundle.version) ||
       !Array.isArray(bundle.rules) || bundle.rules.length > MAX_RULES) {
     throw new TypeError('invalid rule bundle');
   }
