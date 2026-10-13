@@ -1,6 +1,6 @@
 # Planned built-in media controls
 
-Status: product requirement captured 2026-10-13; a Prism-owned segment-policy foundation is implemented without importing upstream code. Browser integration and distribution terms remain open.
+Status: product requirement captured 2026-10-13; Prism-owned segment and ad-blocking rule foundations are implemented without importing upstream code or filter lists. Browser integration and distribution terms remain open.
 
 ## User requirement
 
@@ -42,6 +42,8 @@ Keep transport separate from the page observer and playback controller. A caller
 ## Native component boundary
 
 The pinned Chromium checkout registers bundled extensions in `chrome/browser/extensions/component_loader.cc`, checks their identity in `chrome/browser/extensions/component_extensions_allowlist/allowlist.cc`, and maps packaged files through `chrome/browser/resources/component_extension_resources.grd` and `chrome/browser/extensions/chrome_component_extension_resource_manager.cc`. A future implementation will package only the Prism media scripts and a narrowly scoped manifest, then add the minimum registration, allowlist, resource, and build wiring required by that revision. Every changed Chromium file must be recorded in `docs/upstream-patches.md` before a browser relink. Component extensions have broader inherent privilege than an ordinary Store extension, so the manifest and message boundary must accept only YouTube video IDs and validated segment data; page text, cookies, and AI credentials cannot cross it. The component stays dormant in Incognito and with the media feature disabled. No native patch is made while large relinks are paused on this host.
+
+The separate ad-blocking rule compiler and its trust boundary are recorded in `docs/design/built-in-adblock-rules.md`. Its output has been exercised through a disposable DNR fixture in the existing source-built browser, but that fixture is not a Prism-bundled component.
 
 ## Phase and patch boundaries
 
