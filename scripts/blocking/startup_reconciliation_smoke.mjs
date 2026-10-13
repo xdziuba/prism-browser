@@ -31,7 +31,8 @@ for (const path of [fixture, join(fixture, 'blocking'),
   mkdirSync(path);
 }
 for (const file of ['rule_compiler.mjs', 'rule_activation.mjs',
-  'signed_rule_update.mjs', 'startup_reconciliation.mjs']) {
+  'signed_rule_update.mjs', 'startup_reconciliation.mjs',
+  'signed_package_store.mjs']) {
   cpSync(join(repo, 'prism/blocking', file), join(fixture, 'blocking', file));
 }
 cpSync(join(repo, 'prism/settings/media_controls_store.mjs'),
@@ -72,15 +73,33 @@ writeFileSync(join(fixture, 'control.mjs'),
      './settings/media_controls_store.mjs';
    import {reconcileAdblockStartup} from
      './blocking/startup_reconciliation.mjs';
+   import {createSignedPackageStore, SIGNED_PACKAGE_KEY} from
+     './blocking/signed_package_store.mjs';
    import {envelope, publicKey} from './signed_data.mjs';
    const store = createMediaSettingsStore({storageArea: chrome.storage.local,
      incognito: chrome.extension.inIncognitoContext});
    window.prismDefaults = defaultMediaSettings;
    window.prismStore = store;
    window.prismRules = () => chrome.declarativeNetRequest.getDynamicRules();
-   window.prismEnvelope = envelope;
+   window.prismPackageStore = createSignedPackageStore({
+     storageArea: chrome.storage.local,
+     trustedKeys: new Map([['test-key',
+       {sourceId: 'prism.synthetic', publicKey}]]),
+     incognito: chrome.extension.inIncognitoContext,
+   });
+   window.prismSavePackage = () => window.prismPackageStore.save(envelope);
+   window.prismTamperPackage = () => chrome.storage.local.set({
+     [SIGNED_PACKAGE_KEY]: {version: 1,
+       envelope: {...envelope, signature: 'AA'}},
+   });
+   window.prismRestorePackage = async () => {
+     await chrome.storage.local.remove(SIGNED_PACKAGE_KEY);
+     return window.prismSavePackage();
+   };
    window.prismReconcile = () => reconcileAdblockStartup({
-     settingsStore: store, loadSignedEnvelope: () => window.prismEnvelope,
+     settingsStore: store,
+     loadSignedEnvelope: async () =>
+       (await window.prismPackageStore.load()).envelope,
      trustedKeys: new Map([['test-key',
        {sourceId: 'prism.synthetic', publicKey}]]),
      dnrApi: chrome.declarativeNetRequest,
@@ -141,7 +160,8 @@ try {
     settings.adblock.enabled = true;
     settings.adblock.disabledSites = ['allowed.prism.test'];
     const saved = await window.prismStore.save(settings);
-    return saved.ok ? window.prismReconcile() : saved;
+    const cached = saved.ok ? await window.prismSavePackage() : saved;
+    return cached.ok ? window.prismReconcile() : cached;
   });
   const blocked = await probe('blocked.prism.test');
   const excluded = await probe('allowed.prism.test');
@@ -154,29 +174,34 @@ try {
   const restarted = await openBrowser();
   const before = await restarted.evaluate(async () => ({
     settings: await window.prismStore.load(),
+    package: await window.prismPackageStore.load(),
     rules: await window.prismRules(),
   }));
   const reverified = await restarted.evaluate(() => window.prismReconcile());
   if (before.settings.error || !before.settings.settings.adblock.enabled ||
+      before.package.error ||
+      before.package.candidate?.provenance.version !== '1.0.0' ||
       before.rules.length !== 1 || !reverified.ok ||
       await probe('blocked.prism.test')) {
     throw new Error(`Restart DNR state: ${JSON.stringify({before, reverified})}`);
   }
   const tampered = await restarted.evaluate(async () => {
-    const original = window.prismEnvelope;
-    window.prismEnvelope = {...original, signature: 'AA'};
+    await window.prismTamperPackage();
     const result = await window.prismReconcile();
-    window.prismEnvelope = original;
-    return result;
+    return {result, cache: await window.prismPackageStore.load()};
   });
   const afterTamper = await restarted.evaluate(() => window.prismRules());
-  if (tampered.error !== 'verification_failed' || afterTamper.length ||
+  if (tampered.result.error !== 'package_unavailable' ||
+      tampered.cache.error !== 'invalid_package' || afterTamper.length ||
       !await probe('blocked.prism.test')) {
     throw new Error(`Tampered package was not cleared: ${JSON.stringify({
       tampered, afterTamper,
     })}`);
   }
-  const restored = await restarted.evaluate(() => window.prismReconcile());
+  const restored = await restarted.evaluate(async () => {
+    const saved = await window.prismRestorePackage();
+    return saved.ok ? window.prismReconcile() : saved;
+  });
   if (!restored.ok || await probe('blocked.prism.test')) {
     throw new Error(`Valid package did not restore rules: ${JSON.stringify(restored)}`);
   }
@@ -193,7 +218,7 @@ try {
       disabled, cleared,
     })}`);
   }
-  console.log('PASS: signed startup, DNR restart, tamper and disable clear');
+  console.log('PASS: signed package cache, DNR restart, tamper and disable clear');
 } finally {
   await context?.close();
   await new Promise(resolve => server.close(resolve));
