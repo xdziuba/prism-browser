@@ -2,7 +2,7 @@ import {isMediaSettings} from './media_controls_store.mjs';
 import {SKIPPABLE_CATEGORIES} from '../media/segment_policy.mjs';
 
 export async function mountMediaControls({document, store, applySaved,
-                                          readStatus} = {}) {
+                                          readStatus, readSegmentStatus} = {}) {
   if (!document?.getElementById || typeof store?.load !== 'function' ||
       typeof store?.save !== 'function') {
     throw new TypeError('A settings document and store are required');
@@ -10,6 +10,7 @@ export async function mountMediaControls({document, store, applySaved,
   const form = document.getElementById('media-form');
   const status = document.getElementById('form-status');
   const ruleStatus = document.getElementById('rule-status');
+  const segmentStatus = document.getElementById('segment-status');
   const sites = document.getElementById('site-list');
   const siteInput = document.getElementById('site-input');
   const addButton = document.getElementById('add-site');
@@ -23,6 +24,7 @@ export async function mountMediaControls({document, store, applySaved,
     throw new TypeError('Category controls are incomplete');
   }
   let draft = null;
+  let segmentAvailable = null;
 
   function message(value, kind = 'info') {
     status.textContent = value;
@@ -55,6 +57,23 @@ export async function mountMediaControls({document, store, applySaved,
       summary = 'Installed rules differ from saved settings. Save again to reconcile.';
     }
     ruleStatus.textContent = summary;
+  }
+
+  async function refreshSegmentStatus() {
+    let value;
+    try {
+      value = await readSegmentStatus?.();
+    } catch {
+      value = null;
+    }
+    segmentAvailable = typeof value?.available === 'boolean' ?
+      value.available : null;
+    segmentStatus.dataset.state = segmentAvailable === false ?
+      'unavailable' : segmentAvailable === true ? 'ready' : 'unknown';
+    segmentStatus.textContent = segmentAvailable === false ?
+      'No segment provider is configured in this build. Enabling will not skip videos.' :
+      segmentAvailable === true ? 'A segment provider is configured.' :
+      'Segment service status could not be checked.';
   }
 
   function lock(locked) {
@@ -145,6 +164,7 @@ export async function mountMediaControls({document, store, applySaved,
       return;
     }
     draft = next;
+    await refreshSegmentStatus();
     if (applySaved) {
       let applied;
       try {
@@ -152,10 +172,23 @@ export async function mountMediaControls({document, store, applySaved,
       } catch {
         applied = {ok: false};
       }
-      message(applied?.ok ?
-        'Saved. Ad blocking updated; video choices apply on the next lookup.' :
-        'Saved, but ad blocking could not be applied.',
-      applied?.ok ? 'info' : 'error');
+      if (!applied?.ok) {
+        let segmentIssue = '';
+        if (next.segments.enabled && segmentAvailable === false) {
+          segmentIssue = ' Segment lookup unavailable in this build.';
+        } else if (next.segments.enabled && segmentAvailable === null) {
+          segmentIssue = ' Segment service status unknown.';
+        }
+        message(`Saved, but ad blocking could not be applied.${segmentIssue}`,
+          'error');
+      } else if (next.segments.enabled && segmentAvailable !== true) {
+        message(segmentAvailable === false ?
+          'Saved. Ad blocking updated; segment lookup unavailable in this build.' :
+          'Saved. Ad blocking updated; segment service status unknown.',
+        'error');
+      } else {
+        message('Saved. Ad blocking updated; video choices apply on the next lookup.');
+      }
     } else {
       message('Saved. Changes take effect after the component restarts.');
     }
@@ -172,6 +205,7 @@ export async function mountMediaControls({document, store, applySaved,
     loaded = null;
   }
   if (loaded?.error || !isMediaSettings(loaded?.settings)) {
+    await refreshSegmentStatus();
     await refreshRuleStatus();
     message('Settings are unavailable. No changes were saved.', 'error');
     return {ok: false};
@@ -183,6 +217,7 @@ export async function mountMediaControls({document, store, applySaved,
     actions.get(category).value = draft.segments.categories[category];
   }
   renderSites();
+  await refreshSegmentStatus();
   await refreshRuleStatus();
   lock(false);
   message('Ready');

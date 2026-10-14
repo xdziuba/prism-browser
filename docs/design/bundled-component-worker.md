@@ -5,8 +5,8 @@ prototype. Native Chromium component registration is a later build gate.
 
 The bundled component needs one service worker that owns media settings,
 verified rule storage, DNR reconciliation, and segment lookups. Instantiate one
-settings store and one rule owner per worker lifetime. Route only the two fixed
-options-page messages to the settings bridge and the fixed content-script
+settings store and one rule owner per worker lifetime. Route only the fixed
+options-page save/status messages to the settings bridge and the content-script
 lookup message to the segment bridge. Each bridge authenticates its sender;
 the dispatcher must not accept a caller-supplied URL, video ID, ruleset, API
 origin, or update package. Unknown messages receive a fixed error.
@@ -65,3 +65,16 @@ extension's storage and options URL, so manifest identity should be treated as
 stable from this point. Validate the derivation against the pinned browser's
 observed extension ID before adding an allowlist entry. No upstream file is
 changed in this identity slice.
+
+## Availability in settings
+
+The options page must not imply that saving `segments.enabled` makes skipping
+work when this build has no segment provider. Add one fixed read-only status
+message, accepted only from the authenticated options page. The worker answers
+with a boolean indicating whether its trusted startup configured a provider;
+it never returns the provider URL, key, rules, settings, or any page data.
+Show a persistent warning when unavailable and restate it after a save. A
+test-only synthetic provider may report ready. This is a capability indicator,
+not proof that a remote service or live YouTube works. Keep the preference
+editable so a previously enabled user can disable it when a provider is
+removed. Invalid or missing status responses display an unknown state.

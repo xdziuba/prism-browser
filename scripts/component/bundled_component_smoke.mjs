@@ -85,6 +85,9 @@ async function run(fixture, name, synthetic) {
     await options.locator('#form-status').getByText('Ready').waitFor();
     await options.locator('#rule-status')
       .getByText('Off · no rules installed.').waitFor();
+    await options.locator('#segment-status').getByText(synthetic ?
+      'A segment provider is configured.' :
+      'No segment provider is configured in this build. Enabling will not skip videos.').waitFor();
     if (await options.locator('#segments-enabled').isChecked() ||
         await options.locator('#adblock-enabled').isChecked()) {
       throw new Error('The staged component did not default to off');
@@ -93,6 +96,10 @@ async function run(fixture, name, synthetic) {
     if (!synthetic) await options.locator('#adblock-enabled').check();
     await options.locator('#save-settings').click();
     await options.locator('#form-status').getByText(/Saved/).waitFor();
+    if (!synthetic) {
+      await options.locator('#form-status')
+        .getByText(/Segment lookup unavailable in this build/).waitFor();
+    }
     if (!synthetic) {
       await options.locator('#rule-status')
         .getByText('No verified rule package is available.').waitFor();

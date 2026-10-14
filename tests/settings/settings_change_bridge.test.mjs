@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {createSettingsChangeHandler, APPLY_SETTINGS_MESSAGE,
-  RULE_STATUS_MESSAGE} from
+  RULE_STATUS_MESSAGE, SEGMENT_STATUS_MESSAGE} from
   '../../prism/settings/settings_change_bridge.mjs';
 import {defaultMediaSettings} from
   '../../prism/settings/media_controls_store.mjs';
@@ -87,6 +87,25 @@ test('unknown Incognito mode fails before storage or DNR access', async () => {
     {ok: false, state: 'skipped', error: 'incognito_disabled'});
   assert.deepEqual(calls, []);
 });
+
+test('segment capability is read-only and limited to the options page',
+  async () => {
+    const {handle, calls} = fixture();
+    assert.deepEqual(await handle({type: SEGMENT_STATUS_MESSAGE}, sender),
+      {available: false});
+    assert.deepEqual(calls, []);
+    assert.equal((await handle({type: SEGMENT_STATUS_MESSAGE},
+      {...sender, frameId: 1})).error, 'unauthorized');
+    assert.equal((await handle({type: SEGMENT_STATUS_MESSAGE,
+      provider: 'https://example.com'}, sender)).error, 'unauthorized');
+    assert.deepEqual(calls, []);
+    const available = createSettingsChangeHandler({extensionId,
+      ruleOwner: {settingsChanged() { throw new Error('unused'); },
+        status() { throw new Error('unused'); }},
+      incognito: false, segmentProviderAvailable: true});
+    assert.deepEqual(await available({type: SEGMENT_STATUS_MESSAGE}, sender),
+      {available: true});
+  });
 
 test('accepted notifications reconcile serially', async () => {
   const calls = [];

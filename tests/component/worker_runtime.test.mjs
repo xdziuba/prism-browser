@@ -59,6 +59,8 @@ test('cold worker clears old DNR state before answering status', async () => {
   assert.deepEqual(item.rules, []);
   assert.ok(item.calls.indexOf('dnr:update') <
     item.calls.lastIndexOf('dnr:read'));
+  assert.deepEqual(await item.send({type: 'prism.media.status'},
+    optionsSender), {available: false});
 });
 
 test('dispatches only authenticated fixed messages and serial startup',
@@ -99,6 +101,8 @@ test('media lookup stays disabled without a provider; test provider is scoped',
       return [{videoID: videoId, segments: [{segment: [4, 8],
         category: 'sponsor', UUID: 'synthetic-1', actionType: 'skip'}]}];
     }});
+    assert.deepEqual(await local.send({type: 'prism.media.status'},
+      optionsSender), {available: true});
     assert.equal((await local.send({type: 'prism.media.lookup',
       duration: 120}, optionsSender)).error, 'unauthorized');
     const response = await local.send({type: 'prism.media.lookup',
@@ -111,7 +115,7 @@ test('media lookup stays disabled without a provider; test provider is scoped',
 
 test('unknown Incognito state fails before storage, DNR, and lookup',
   async () => {
-  const item = fixture({incognito: null,
+    const item = fixture({incognito: null,
       fetchPrefix: async () => { throw new Error('must not run'); }});
     await item.worker.ready;
     assert.deepEqual(item.calls, []);

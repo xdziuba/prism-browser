@@ -43,6 +43,8 @@ button:disabled { opacity: .55; cursor: default; }
 .site-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .35rem .4rem .35rem .75rem; border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
 .site-list button { border-color: transparent; }
 .rule-diagnostics { margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.segment-diagnostics { margin-top: .9rem; font-size: .875rem; }
+.segment-diagnostics[data-state="unavailable"] { color: #92511a; }
 .save-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .4rem .2rem; }
 #form-status[data-kind="error"] { color: #9f3434; }
 #save-settings { background: var(--accent); color: #fff; }
@@ -60,4 +62,5 @@ button:disabled { opacity: .55; cursor: default; }
   :root { background: #111c1c; color: #eaf1ee; --surface: #192727; --border: #405351; --muted: #bccfca; --accent: #9cddd0; --focus: #e3b767; }
   #save-settings { color: #102522; }
   #form-status[data-kind="error"] { color: #ffb0a8; }
+  .segment-diagnostics[data-state="unavailable"] { color: #f2bd83; }
 }

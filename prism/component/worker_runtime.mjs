@@ -4,7 +4,8 @@ import {createSignedPackageStore} from '../blocking/signed_package_store.mjs';
 import {createSegmentMessageHandler} from '../media/segment_message_bridge.mjs';
 import {createMediaSettingsStore} from '../settings/media_controls_store.mjs';
 import {createSettingsChangeHandler, APPLY_SETTINGS_MESSAGE,
-  RULE_STATUS_MESSAGE} from '../settings/settings_change_bridge.mjs';
+  RULE_STATUS_MESSAGE, SEGMENT_STATUS_MESSAGE} from
+  '../settings/settings_change_bridge.mjs';
 
 const LOOKUP_MESSAGE = 'prism.media.lookup';
 const unavailableProvider = async () => { throw new Error('provider unavailable'); };
@@ -24,7 +25,8 @@ export function registerBundledComponentWorker({runtime, storageArea, dnrApi,
   const ruleOwner = createAdblockRuleOwner({settingsStore, packageStore,
     trustedKeys, dnrApi, incognito});
   const settingsMessage = createSettingsChangeHandler({
-    extensionId: runtime.id, ruleOwner, incognito});
+    extensionId: runtime.id, ruleOwner, incognito,
+    segmentProviderAvailable: fetchPrefix !== unavailableProvider});
   const segmentMessage = createSegmentMessageHandler({
     extensionId: runtime.id, settingsStore, fetchPrefix, incognito});
 
@@ -35,7 +37,7 @@ export function registerBundledComponentWorker({runtime, storageArea, dnrApi,
   runtime.onMessage.addListener((message, sender, sendResponse) => {
     const type = message?.type;
     if (type !== APPLY_SETTINGS_MESSAGE && type !== RULE_STATUS_MESSAGE &&
-        type !== LOOKUP_MESSAGE) {
+        type !== SEGMENT_STATUS_MESSAGE && type !== LOOKUP_MESSAGE) {
       sendResponse({error: 'invalid_request'});
       return false;
     }
