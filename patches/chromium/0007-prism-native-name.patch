@@ -1,0 +1,44 @@
+diff --git a/chrome/app/chromium_strings.grd b/chrome/app/chromium_strings.grd
+index 87499190d7..67d526008e 100644
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -294,10 +294,10 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+         </then>
+         <else>
+           <message name="IDS_PRODUCT_NAME" desc="The Chrome application name" translateable="false">
+-            Chromium
++            Prism Browser
+           </message>
+           <message name="IDS_SHORT_PRODUCT_NAME" desc="The Chrome application short name." translateable="false">
+-            Chromium
++            Prism
+           </message>
+         </else>
+       </if>
+@@ -320,7 +320,7 @@ If you update this file, be sure also to update google_chrome_strings.grd. -->
+       </if>
+       <if expr="is_macosx or is_linux">
+         <message name="IDS_FIRST_RUN_DIALOG_WINDOW_TITLE" desc="Window title of First Run dialog on Mac and Linux, displayed in title bar">
+-          Welcome to Chromium
++          Welcome to Prism Browser
+         </message>
+       </if>
+       <if expr="is_linux">
+@@ -452,7 +452,7 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+           </then>
+           <else>
+             <message name="IDS_BROWSER_WINDOW_TITLE_FORMAT" desc="The format for titles displayed in tabs and popup windows">
+-              <ph name="PAGE_TITLE">$1<ex>Google</ex></ph> - Chromium
++              <ph name="PAGE_TITLE">$1<ex>Google</ex></ph> - Prism Browser
+             </message>
+           </else>
+         </if>
+@@ -576,7 +576,7 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
+         </message>
+       </if>
+       <message name="IDS_ACCNAME_APP" desc="The accessible name for the app menu." translateable="false">
+-        Chromium
++        Prism Browser
+       </message>
+       <!-- Hung Browser Detector -->
+       <if expr="is_win">

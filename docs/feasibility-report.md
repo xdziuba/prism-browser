@@ -179,6 +179,31 @@ This is a command-line contrast smoke, not an OS accessibility-setting test.
 Windows appearance, OS-driven high contrast, keyboard focus, reduced
 transparency, and actual translucency remain **unverified**.
 
+## Native branding string slice — 2026-10-14
+
+`docs/design/native-branding.md` scopes the first name change, and patch
+`0007-prism-native-name.patch` changes only `chrome/app/chromium_strings.grd`.
+It sets the non-Chrome-for-Testing product and short names, ordinary window
+title suffix, first-run title, and app accessible name to Prism. It does not
+rename the binary or profile directory, replace the icon, rewrite Chromium's
+attribution, or constitute a complete rebrand.
+
+`autoninja -j1 -C out/PrismFeasibility chrome` succeeded with 230 local
+resource actions in 1m29.95s; the executable was not relinked because the
+string resources are loaded from the rebuilt `.pak` files. The disposable
+profile test `node scripts/phase0/branding_smoke.mjs <built chrome>` passed:
+the Polish `chrome://version` page labeled the application **Prism Browser**.
+The captured application/version row is
+`docs/evidence/native-branding-version-linux-20261014.png`.
+`python3 scripts/phase0/browser_smoke.py <built chrome>` passed its ordinary
+page and Prism WebUI, `DISPLAY=:101 node scripts/phase0/devtools_f12_smoke.mjs
+<built chrome>` passed F12, and `npm run smoke:native-component -- <built
+chrome>` passed identity, isolated script, five modules, inert providers, and
+restart. On isolated Xvfb, X11's `WM_NAME` and `_NET_WM_NAME` remained the
+generic `chrome`, so the native window-title suffix itself is **unverified**
+there. First-run text, app-menu accessible name, icon, desktop integration,
+and Windows appearance are also **unverified**.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
