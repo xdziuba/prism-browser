@@ -29,7 +29,8 @@ async function openBrowser() {
   return chromium.launchPersistentContext(profile, {
     executablePath: binary,
     headless: true,
-    ignoreDefaultArgs: ['--disable-extensions'],
+    ignoreDefaultArgs: ['--disable-extensions',
+      '--disable-component-extensions-with-background-pages'],
     args: ['--no-proxy-server'],
   });
 }
@@ -67,6 +68,57 @@ try {
     const rules = await options.evaluate(() =>
       chrome.declarativeNetRequest.getDynamicRules());
     if (rules.length) throw new Error('Provider-free component installed rules');
+
+    await context.route('https://www.youtube.com/**', route =>
+      route.fulfill({status: 200, contentType: 'text/html',
+        body: '<!doctype html><div id="movie_player"><video class="html5-main-video"></video></div>'}));
+    const page = await context.newPage();
+    const client = await context.newCDPSession(page);
+    const resourcePrefix = `chrome-extension://${componentId}/`;
+    const pendingModules = new Set([
+      'media/watch_playback_session.mjs',
+      'media/playback_controls.mjs',
+      'media/playback_controller.mjs',
+      'media/segment_policy.mjs',
+      'media/youtube_site_adapter.mjs',
+    ]);
+    const moduleResponses = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(
+        `Native content modules did not load: ${[...pendingModules]}`)), 5000);
+      client.on('Network.responseReceived', ({response}) => {
+        if (!response.url.startsWith(resourcePrefix)) return;
+        const resource = response.url.slice(resourcePrefix.length);
+        if (!pendingModules.has(resource)) return;
+        if (response.status !== 200) {
+          clearTimeout(timer);
+          reject(new Error(`${resource} returned ${response.status}`));
+          return;
+        }
+        pendingModules.delete(resource);
+        if (pendingModules.size === 0) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    const isolatedWorld = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(
+        'Native media content script did not create an isolated world')), 5000);
+      client.on('Runtime.executionContextCreated', ({context: execution}) => {
+        if (execution.origin === `chrome-extension://${componentId}` &&
+            execution.auxData?.type === 'isolated') {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    await client.send('Network.enable');
+    await client.send('Runtime.enable');
+    await Promise.all([
+      page.goto('https://www.youtube.com/watch?v=abcdefghijk'),
+      isolatedWorld,
+      moduleResponses,
+    ]);
   } finally {
     await context.close();
   }
@@ -84,7 +136,7 @@ try {
   } finally {
     await context.close();
   }
-  console.log('PASS: native component identity, defaults, inert providers and restart');
+  console.log('PASS: native identity, isolated script, five modules, inert providers and restart');
 } finally {
   rmSync(profile, {recursive: true, force: true});
 }
