@@ -1,0 +1,85 @@
+diff --git a/chrome/browser/ui/color/chrome_color_mixers.cc b/chrome/browser/ui/color/chrome_color_mixers.cc
+index 8432f49468..3a3778a5e3 100644
+--- a/chrome/browser/ui/color/chrome_color_mixers.cc
++++ b/chrome/browser/ui/color/chrome_color_mixers.cc
+@@ -10,6 +10,7 @@
+ #include "base/containers/fixed_flat_map.h"
+ #include "base/functional/bind.h"
+ #include "base/no_destructor.h"
++#include "build/build_config.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/color/chrome_color_mixer.h"
+ #include "chrome/browser/ui/color/chrome_color_provider_utils.h"
+@@ -23,10 +24,54 @@
+ #include "chrome/browser/ui/color/omnibox_color_mixer.h"
+ #include "chrome/browser/ui/color/product_specifications_color_mixer.h"
+ #include "chrome/browser/ui/color/tab_strip_color_mixer.h"
++#include "third_party/skia/include/core/SkColor.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_mixer.h"
++#include "ui/color/color_provider.h"
+ #include "ui/color/color_provider_utils.h"
++#include "ui/color/color_recipe.h"
+ 
+ namespace {
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++void AddPrismChromeColorMixer(ui::ColorProvider* provider,
++                              const ui::ColorProviderKey& key) {
++  using ThemeType = ui::ColorProviderKey::ThemeInitializerSupplier::ThemeType;
++  if ((key.custom_theme &&
++       key.custom_theme->get_theme_type() != ThemeType::kNativeX11) ||
++      key.app_controller ||
++      key.frame_style != ui::ColorProviderKey::FrameStyle::kDefault ||
++      key.contrast_mode != ui::ColorProviderKey::ContrastMode::kNormal ||
++      key.forced_colors != ui::ColorProviderKey::ForcedColors::kNone) {
++    return;
++  }
++
++  const bool dark = key.color_mode == ui::ColorProviderKey::ColorMode::kDark;
++  const SkColor frame =
++      dark ? SkColorSetRGB(0x1C, 0x29, 0x32) : SkColorSetRGB(0xE2, 0xEB, 0xF0);
++  const SkColor surface =
++      dark ? SkColorSetRGB(0x2C, 0x39, 0x42) : SkColorSetRGB(0xF5, 0xF9, 0xFB);
++  const SkColor primary =
++      dark ? SkColorSetRGB(0xF2, 0xF6, 0xF8) : SkColorSetRGB(0x21, 0x31, 0x3B);
++  const SkColor secondary =
++      dark ? SkColorSetRGB(0xC8, 0xD5, 0xDD) : SkColorSetRGB(0x46, 0x5C, 0x69);
++  ui::ColorMixer& mixer = provider->AddMixer();
++  mixer[ui::kColorFrameActive] = {frame};
++  mixer[ui::kColorFrameInactive] = {frame};
++  mixer[kColorToolbar] = {surface};
++  mixer[kColorToolbarText] = {primary};
++  mixer[kColorToolbarButtonText] = {secondary};
++  mixer[kColorTabBackgroundActiveFrameActive] = {surface};
++  mixer[kColorTabBackgroundActiveFrameInactive] = {surface};
++  mixer[kColorTabBackgroundInactiveFrameActive] = {frame};
++  mixer[kColorTabBackgroundInactiveFrameInactive] = {frame};
++  mixer[kColorTabForegroundActiveFrameActive] = {primary};
++  mixer[kColorTabForegroundActiveFrameInactive] = {primary};
++  mixer[kColorTabForegroundInactiveFrameActive] = {secondary};
++  mixer[kColorTabForegroundInactiveFrameInactive] = {secondary};
++}
++#endif
++
+ class ChromeColorProviderUtilsCallbacks
+     : public ui::ColorProviderUtilsCallbacks {
+  public:
+@@ -85,7 +130,7 @@ void AddChromeColorMixers(ui::ColorProvider* provider,
+   AddMaterialSidePanelColorMixer(provider, key);
+   AddMaterialTabStripColorMixer(provider, key);
+ 
+-  // Must be the last one in order to override other mixer colors.
++  // Native colors override the shared material recipes.
+   AddNativeChromeColorMixer(provider, key);
+ 
+   if (key.custom_theme) {
+@@ -95,4 +140,8 @@ void AddChromeColorMixers(ui::ColorProvider* provider,
+   if (key.app_controller) {
+     key.app_controller->AddColorMixers(provider, key);
+   }
++
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  AddPrismChromeColorMixer(provider, key);
++#endif
+ }
