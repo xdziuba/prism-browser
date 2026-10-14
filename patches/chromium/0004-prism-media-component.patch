@@ -1,0 +1,104 @@
+diff --git a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc b/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+index 242d73beec..de6b5b946d 100644
+--- a/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
++++ b/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+@@ -97,6 +97,7 @@ bool IsComponentExtensionAllowlisted(int manifest_resource_id) {
+     case IDR_GLIC_EXTENSION_MANIFEST:
+     case IDR_NETWORK_SPEECH_SYNTHESIS_MANIFEST:
+     case IDR_NETWORK_SPEECH_SYNTHESIS_MANIFEST_MV3:
++    case IDR_PRISM_MEDIA_MANIFEST:
+     case IDR_WEBSTORE_MANIFEST:
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+diff --git a/chrome/browser/extensions/component_loader.cc b/chrome/browser/extensions/component_loader.cc
+index afe6eac8e5..ccb4989337 100644
+--- a/chrome/browser/extensions/component_loader.cc
++++ b/chrome/browser/extensions/component_loader.cc
+@@ -792,6 +792,13 @@ void ComponentLoader::AddDefaultComponentExtensionsWithBackgroundPages(
+   AddGlicExtension();
+   AddContextualTasksExtension();
+ 
++#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
++  if (profile_->IsRegularProfile()) {
++    Add(IDR_PRISM_MEDIA_MANIFEST,
++        base::FilePath(FILE_PATH_LITERAL("prism_media")));
++  }
++#endif
++
+ // http://crbug.com/41070702
+ #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+   AddNetworkSpeechSynthesisExtension();
+diff --git a/chrome/browser/resources/BUILD.gn b/chrome/browser/resources/BUILD.gn
+index ef6376d651..75e3fb7f10 100644
+--- a/chrome/browser/resources/BUILD.gn
++++ b/chrome/browser/resources/BUILD.gn
+@@ -253,6 +253,32 @@ if (enable_extensions_core) {
+     source = "component_extension_resources.grd"
+ 
+     inputs = [
++      "../../../prism/component/manifest.json",
++      "../../../prism/blocking/adblock_rule_owner.mjs",
++      "../../../prism/blocking/rule_activation.mjs",
++      "../../../prism/blocking/rule_compiler.mjs",
++      "../../../prism/blocking/rule_diagnostics.mjs",
++      "../../../prism/blocking/signed_package_store.mjs",
++      "../../../prism/blocking/signed_rule_coordinator.mjs",
++      "../../../prism/blocking/signed_rule_update.mjs",
++      "../../../prism/blocking/startup_reconciliation.mjs",
++      "../../../prism/component/content_script.js",
++      "../../../prism/component/worker.mjs",
++      "../../../prism/component/worker_runtime.mjs",
++      "../../../prism/media/playback_controller.mjs",
++      "../../../prism/media/playback_controls.mjs",
++      "../../../prism/media/segment_lookup.mjs",
++      "../../../prism/media/segment_message_bridge.mjs",
++      "../../../prism/media/segment_policy.mjs",
++      "../../../prism/media/watch_playback_session.mjs",
++      "../../../prism/media/youtube_site_adapter.mjs",
++      "../../../prism/settings/media_controls.css",
++      "../../../prism/settings/media_controls.html",
++      "../../../prism/settings/media_controls_boot.mjs",
++      "../../../prism/settings/media_controls_store.mjs",
++      "../../../prism/settings/media_controls_ui.mjs",
++      "../../../prism/settings/settings_change_bridge.mjs",
++      "../../../prism/settings/settings_message.mjs",
+       "glic/extension/manifest.json",
+       "network_speech_synthesis/mv3/audio.html",
+       "network_speech_synthesis/mv3/audio.js",
+diff --git a/chrome/browser/resources/component_extension_resources.grd b/chrome/browser/resources/component_extension_resources.grd
+index 37f5f7edf2..0dfeca5c7f 100644
+--- a/chrome/browser/resources/component_extension_resources.grd
++++ b/chrome/browser/resources/component_extension_resources.grd
+@@ -12,6 +12,32 @@
+   </outputs>
+   <release seq="1">
+     <includes>
++      <include name="IDR_PRISM_MEDIA_MANIFEST" file="../../../prism/component/manifest.json" resource_path="prism_media/manifest.json" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_ADBLOCK_RULE_OWNER_MJS" file="../../../prism/blocking/adblock_rule_owner.mjs" resource_path="prism_media/blocking/adblock_rule_owner.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_RULE_ACTIVATION_MJS" file="../../../prism/blocking/rule_activation.mjs" resource_path="prism_media/blocking/rule_activation.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_RULE_COMPILER_MJS" file="../../../prism/blocking/rule_compiler.mjs" resource_path="prism_media/blocking/rule_compiler.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_RULE_DIAGNOSTICS_MJS" file="../../../prism/blocking/rule_diagnostics.mjs" resource_path="prism_media/blocking/rule_diagnostics.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_SIGNED_PACKAGE_STORE_MJS" file="../../../prism/blocking/signed_package_store.mjs" resource_path="prism_media/blocking/signed_package_store.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_SIGNED_RULE_COORDINATOR_MJS" file="../../../prism/blocking/signed_rule_coordinator.mjs" resource_path="prism_media/blocking/signed_rule_coordinator.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_SIGNED_RULE_UPDATE_MJS" file="../../../prism/blocking/signed_rule_update.mjs" resource_path="prism_media/blocking/signed_rule_update.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_BLOCKING_STARTUP_RECONCILIATION_MJS" file="../../../prism/blocking/startup_reconciliation.mjs" resource_path="prism_media/blocking/startup_reconciliation.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_COMPONENT_CONTENT_SCRIPT_JS" file="../../../prism/component/content_script.js" resource_path="prism_media/component/content_script.js" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_COMPONENT_WORKER_MJS" file="../../../prism/component/worker.mjs" resource_path="prism_media/component/worker.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_COMPONENT_WORKER_RUNTIME_MJS" file="../../../prism/component/worker_runtime.mjs" resource_path="prism_media/component/worker_runtime.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_PLAYBACK_CONTROLLER_MJS" file="../../../prism/media/playback_controller.mjs" resource_path="prism_media/media/playback_controller.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_PLAYBACK_CONTROLS_MJS" file="../../../prism/media/playback_controls.mjs" resource_path="prism_media/media/playback_controls.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_SEGMENT_LOOKUP_MJS" file="../../../prism/media/segment_lookup.mjs" resource_path="prism_media/media/segment_lookup.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_SEGMENT_MESSAGE_BRIDGE_MJS" file="../../../prism/media/segment_message_bridge.mjs" resource_path="prism_media/media/segment_message_bridge.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_SEGMENT_POLICY_MJS" file="../../../prism/media/segment_policy.mjs" resource_path="prism_media/media/segment_policy.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_WATCH_PLAYBACK_SESSION_MJS" file="../../../prism/media/watch_playback_session.mjs" resource_path="prism_media/media/watch_playback_session.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_MEDIA_YOUTUBE_SITE_ADAPTER_MJS" file="../../../prism/media/youtube_site_adapter.mjs" resource_path="prism_media/media/youtube_site_adapter.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_MEDIA_CONTROLS_CSS" file="../../../prism/settings/media_controls.css" resource_path="prism_media/settings/media_controls.css" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_MEDIA_CONTROLS_HTML" file="../../../prism/settings/media_controls.html" resource_path="prism_media/settings/media_controls.html" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_MEDIA_CONTROLS_BOOT_MJS" file="../../../prism/settings/media_controls_boot.mjs" resource_path="prism_media/settings/media_controls_boot.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_MEDIA_CONTROLS_STORE_MJS" file="../../../prism/settings/media_controls_store.mjs" resource_path="prism_media/settings/media_controls_store.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_MEDIA_CONTROLS_UI_MJS" file="../../../prism/settings/media_controls_ui.mjs" resource_path="prism_media/settings/media_controls_ui.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_SETTINGS_CHANGE_BRIDGE_MJS" file="../../../prism/settings/settings_change_bridge.mjs" resource_path="prism_media/settings/settings_change_bridge.mjs" type="BINDATA" />
++      <include name="IDR_PRISM_MEDIA_SETTINGS_SETTINGS_MESSAGE_MJS" file="../../../prism/settings/settings_message.mjs" resource_path="prism_media/settings/settings_message.mjs" type="BINDATA" />
+       <include name="IDR_NETWORK_SPEECH_SYNTHESIS_JS" file="network_speech_synthesis/tts_extension.js" type="BINDATA" />
+ 
+       <include name="IDR_NETWORK_SPEECH_SYNTHESIS_MV3_AUDIO_HTML" file="network_speech_synthesis/mv3/audio.html" type="BINDATA" />

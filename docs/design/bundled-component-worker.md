@@ -78,3 +78,28 @@ test-only synthetic provider may report ready. This is a capability indicator,
 not proof that a remote service or live YouTube works. Keep the preference
 editable so a previously enabled user can disable it when a provider is
 removed. Invalid or missing status responses display an unknown state.
+
+## Native resource registration plan
+
+Bundle the exact staged MV3 resource tree under `prism_media/` in Chromium's
+component-extension resource pack. Give the manifest its own GRIT ID and
+register that ID in the component manifest allowlist. Register the component
+once from `ComponentLoader` in regular Windows and Linux profiles, in the
+background-extension section so existing test switches continue to suppress
+it. Keep its fixed public-key identity; do not use `AddOrReplace()` or a
+filesystem profile extension. Resource paths should match the tested
+disposable tree byte for byte, and no test provider, rule package, signing key,
+or host permission is added. The native loader and resource pack changes are
+four small upstream-file edits; record them as one patch. A static resource
+closure check and `git apply --check` can run without linking the browser.
+The component's actual load, storage, content script, DNR behavior, Incognito
+scope, and browser settings entry remain unverified until a future rebuilt
+binary passes dedicated smoke tests. Do not call this registration complete
+from a GRIT or single-target compile alone.
+
+Prepare a no-load-flags native smoke test that opens the component options URL
+by the pinned ID, checks its runtime identity and off-by-default behavior,
+enables both settings, confirms the unconfigured worker installs zero DNR
+rules, and verifies settings and zero rules after a browser restart. It must
+use a disposable profile and the pinned source-built binary. Run it only after
+the browser relink; syntax checking it now is not a passing browser test.
