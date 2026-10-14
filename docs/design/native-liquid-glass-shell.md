@@ -47,6 +47,18 @@ blurred surfaces across tab strip, toolbar, and side panel.
 
 ## Verification
 
+### Linux GTK frame decision (2026-10-14)
+
+The first visual capture exposed a GTK-painted empty titlebar region that did
+not match the Prism frame token. `FrameBackground` delegates that region to the
+Linux native theme even when the browser has supplied a ColorProvider frame.
+For an ordinary Prism window with no frame image, cover only the
+interior of that top area with the resolved Prism frame color after GTK paints
+it. Keep native frame edges and preserve GTK's paint path
+for app windows, custom image themes, special frame modes, and frames whose
+color does not resolve to a Prism token. This is an opaque surface correction;
+it does not introduce backdrop blur or change window hit testing.
+
 Capture the current and changed native frame on the same synthetic page in
 light and dark modes. Check tab and toolbar text contrast from the actual
 resolved colors, keyboard focus, a narrow window, and high contrast/system

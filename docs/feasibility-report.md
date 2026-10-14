@@ -136,13 +136,32 @@ page and Prism WebUI; `DISPLAY=:101 node scripts/phase0/devtools_f12_smoke.mjs
 `npm run smoke:native-component -- <built chrome>` passed its native identity,
 isolated script, module, inert-provider, and restart checks.
 
-The empty titlebar area still appears Chromium gray in this X11 capture, so
-the shell is visually incomplete. A disposable profile with
+The first screenshot's empty titlebar area still appeared Chromium gray, so
+the initial shell slice was visually incomplete. A disposable profile with
 `browser.theme.color_scheme2=1` remained visually dark on this host; a light
 runtime screenshot is **not verified** despite computed token contrast. High
 contrast, reduced transparency, native blur, Windows appearance, narrow-window
 layout, and focused keyboard styling still need direct visual checks. No
 production material effect or complete UI redesign is claimed.
+
+The follow-up `0006-prism-linux-frame-interior.patch` addresses that specific
+GTK paint path. The initial shared `FrameBackground` approach was abandoned
+after its header change queued a broad rebuild; the final patch changes only
+`opaque_browser_frame_view.cc`. `autoninja -j1 -C out/PrismFeasibility chrome`
+passed with two final actions in 35.31 seconds. In the isolated `:101` capture,
+the previously gray empty top area at pixel (400, 10) changed from
+`rgb(53,53,53)` to the Prism frame `rgb(28,41,50)`; the toolbar remained
+`rgb(44,57,66)`. The captured crop is
+`docs/evidence/native-shell-dark-linux-20261014.png`. The full capture is
+external at `/home/pawel/coding/prism-chromium-work/ui-frame-complete-20261014.png`.
+`python3 scripts/phase0/browser_smoke.py <built chrome>` passed the ordinary
+page and Prism WebUI, `DISPLAY=:101 node scripts/phase0/devtools_f12_smoke.mjs
+<built chrome>` passed F12, and `npm run smoke:native-component -- <built
+chrome>` passed the native component identity, script, five modules, inert
+providers, and restart. `GTK_THEME=Adwaita:light` in an isolated process still
+resolved to the dark Prism colors on this host, so light-mode runtime remains
+**unverified**. Windows appearance, high contrast, narrow-window layout,
+keyboard focus, and actual translucency also remain **unverified**.
 
 ## Decisions and limitations
 

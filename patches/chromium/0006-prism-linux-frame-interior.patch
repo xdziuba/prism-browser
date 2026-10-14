@@ -1,0 +1,29 @@
+diff --git a/chrome/browser/ui/views/frame/opaque_browser_frame_view.cc b/chrome/browser/ui/views/frame/opaque_browser_frame_view.cc
+index 62f69255e0..529969d76d 100644
+--- a/chrome/browser/ui/views/frame/opaque_browser_frame_view.cc
++++ b/chrome/browser/ui/views/frame/opaque_browser_frame_view.cc
+@@ -676,6 +676,24 @@ void OpaqueBrowserFrameView::OnPaint(gfx::Canvas* canvas) {
+     PaintRestoredFrameBorder(canvas);
+   }
+ 
++#if BUILDFLAG(IS_LINUX)
++  // GTK paints its own headerbar color over the ColorProvider frame. Cover
++  // only the interior of Prism's ordinary frame, leaving native frame edges,
++  // image themes, and special windows to their existing paint paths.
++  const bool prism_frame_color =
++      frame_color == SkColorSetRGB(0x1C, 0x29, 0x32) ||
++      frame_color == SkColorSetRGB(0xE2, 0xEB, 0xF0);
++  if (prism_frame_color && GetBrowserView()->GetIsNormalType() &&
++      GetFrameImage().isNull()) {
++    const gfx::Insets border = FrameBorderInsets(false);
++    canvas->FillRect(
++        gfx::Rect(border.left(), border.top(),
++                  width() - border.left() - border.right(),
++                  GetTopAreaHeight() - border.top()),
++        frame_color);
++  }
++#endif
++
+   // The window icon and title are painted by their respective views.
+   /* TODO(pkasting):  If this window is active, we should also draw a drop
+    * shadow on the title.  This is tricky, because we don't want to hardcode a
