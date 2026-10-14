@@ -138,8 +138,8 @@ isolated script, module, inert-provider, and restart checks.
 
 The first screenshot's empty titlebar area still appeared Chromium gray, so
 the initial shell slice was visually incomplete. A disposable profile with
-`browser.theme.color_scheme2=1` remained visually dark on this host; a light
-runtime screenshot is **not verified** despite computed token contrast. High
+`browser.theme.color_scheme2=1` remained visually dark on this host while the
+GTK system theme was active. At this point, light-mode runtime was unverified. High
 contrast, reduced transparency, native blur, Windows appearance, narrow-window
 layout, and focused keyboard styling still need direct visual checks. No
 production material effect or complete UI redesign is claimed.
@@ -158,10 +158,26 @@ external at `/home/pawel/coding/prism-chromium-work/ui-frame-complete-20261014.p
 page and Prism WebUI, `DISPLAY=:101 node scripts/phase0/devtools_f12_smoke.mjs
 <built chrome>` passed F12, and `npm run smoke:native-component -- <built
 chrome>` passed the native component identity, script, five modules, inert
-providers, and restart. `GTK_THEME=Adwaita:light` in an isolated process still
-resolved to the dark Prism colors on this host, so light-mode runtime remains
-**unverified**. Windows appearance, high contrast, narrow-window layout,
-keyboard focus, and actual translucency also remain **unverified**.
+providers, and restart. `GTK_THEME=Adwaita:light` alone still resolved to the
+dark Prism colors because `ThemeServiceAuraLinux::GetBrowserColorScheme()`
+follows the system scheme whenever `extensions.theme.system_theme` selects GTK.
+With a disposable profile setting that preference to Chromium's default (`0`)
+and `browser.theme.color_scheme2` to light (`1`), the light runtime screenshot
+showed the planned frame `rgb(226,235,240)` at (400, 10) and toolbar
+`rgb(245,249,251)` at (10, 50). Evidence:
+`docs/evidence/native-shell-light-linux-20261014.png`. The same light profile
+at a 700 px window width kept the tab, new-tab button, omnibox, and menu
+visible; the unsupported-flag banner truncated its text without overlapping
+its close button. Evidence:
+`docs/evidence/native-shell-light-narrow-linux-20261014.png`. These are visual
+smoke checks of the built Linux binary, not a complete accessibility audit.
+An isolated `--force-high-contrast` launch kept Chromium's own high-contrast
+frame and toolbar instead of Prism's palette: frame `rgb(211,227,253)` at
+(400, 10), toolbar white at (10, 50), with tab and omnibox controls visible.
+Evidence: `docs/evidence/native-shell-forced-contrast-linux-20261014.png`.
+This is a command-line contrast smoke, not an OS accessibility-setting test.
+Windows appearance, OS-driven high contrast, keyboard focus, reduced
+transparency, and actual translucency remain **unverified**.
 
 ## Decisions and limitations
 
