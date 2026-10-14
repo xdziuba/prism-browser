@@ -179,6 +179,22 @@ This is a command-line contrast smoke, not an OS accessibility-setting test.
 Windows appearance, OS-driven high contrast, keyboard focus, reduced
 transparency, and actual translucency remain **unverified**.
 
+The next guarded color-mixer refinement uses Chromium's existing active-tab
+stroke and toolbar top separator for one partially transparent edge token. It
+does not add new geometry or backdrop blur. The `0005` patch was regenerated
+with this change in the same upstream file, so the seven-patch sequence still
+passes the idempotent patch checker. `autoninja -j1 -C out/PrismFeasibility
+chrome` passed with two local actions in 11.75 seconds. The reusable
+`scripts/phase0/native_shell_capture.mjs` created isolated dark, light, and
+forced-contrast captures. The dark and light top-bar crops are
+`docs/evidence/native-shell-edge-dark-linux-20261014.png` and
+`docs/evidence/native-shell-edge-light-linux-20261014.png`; the forced-contrast
+probe kept Chromium's colors. Frame/toolbar pixels remained the intended
+`#1C2932`/`#2C3942` dark and `#E2EBF0`/`#F5F9FB` light. The edge is subtle at
+normal scale; the screenshots were reviewed visually. Ordinary-page/WebUI,
+F12, native-component, and branding smoke passed after this relink. Linux
+fallback remains opaque, and actual translucency remains unverified.
+
 ## Native branding string slice — 2026-10-14
 
 `docs/design/native-branding.md` scopes the first name change, and patch

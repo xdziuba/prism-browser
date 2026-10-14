@@ -47,6 +47,16 @@ blurred surfaces across tab strip, toolbar, and side panel.
 
 ## Verification
 
+### Edge highlight decision (2026-10-14)
+
+Use the existing semantic toolbar top separator and active-tab stroke as one
+restrained material edge. In dark mode, resolve it to the muted blue-gray edge
+token at partial opacity; in light mode, use a faint white edge. Keep the
+existing stroke geometry and tab hit regions. This is a subtle optical cue,
+not a simulated translucent window or a new animation. The same mixer guard
+as the base palette prevents it from overriding custom themes, high contrast,
+forced colors, or app windows.
+
 ### Linux GTK frame decision (2026-10-14)
 
 The first visual capture exposed a GTK-painted empty titlebar region that did
