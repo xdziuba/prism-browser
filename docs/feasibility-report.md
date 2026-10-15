@@ -251,6 +251,33 @@ it comes from a separate components resource. WebUI display of the patched
 SVG, executable icon, installer/desktop integration, and Windows appearance
 also remain **unverified** for this logo change.
 
+## Version-page logo follow-up — 2026-10-15
+
+`docs/design/native-logo.md` records the follow-up decision. The original
+Prism mark now has compact 128×32 wordmarks with dark and white text variants,
+and 16 px favicons, each rasterized at 1×/2×/3×. Patch
+`0009-prism-version-logo.patch` changes only
+`components/resources/BUILD.gn` and
+`components/resources/version_ui_scaled_resources.grdp`; the GRIT condition
+excludes Chrome-branded and Chrome for Testing builds. The overlay stages the
+assets under `components/resources/default_*_percent/prism/`.
+
+`autoninja -j1 -C out/PrismFeasibility chrome` passed after GN regeneration:
+four local actions in 11.30 seconds, with the remaining graph skipped; no
+browser executable relink was required. Final 100% and 200% packs contain the
+exact Prism logo, white logo, and favicon PNGs. The generated 300% components
+pack also matches, but this Linux `chrome` build does not package a final
+`chrome_300_percent.pak`. In the built browser,
+`scripts/phase0/version_logo_smoke.mjs` passed in both light and dark mode:
+`chrome://version` displayed a 128×32 wordmark and the **Prism Browser** label.
+The light and dark page crops were reviewed visually:
+`docs/evidence/version-logo-light-linux-20261015.png` and
+`docs/evidence/version-logo-dark-linux-20261015.png`. The page still shows
+Chromium attribution. Ordinary-page/Prism WebUI smoke passed after the pack
+update. New-tab favicon, installer/desktop icons, native window-manager icon,
+Windows appearance, and genuine high-contrast behavior remain separate,
+**unverified** branding surfaces.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.

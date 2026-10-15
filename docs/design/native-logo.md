@@ -19,6 +19,17 @@ upstream art. This slice covers resource-pack icons used by the browser and
 WebUI. Executable, installer, desktop-entry, and Windows shell icons require
 separate packaging work and must not be claimed as replaced here.
 
+## Version-page identity follow-up
+
+The first resource slice does not own `chrome://version` art: its logo and
+favicon come from `components/resources/version_ui_scaled_resources.grdp`.
+Add a compact Prism wordmark and matching 16 px favicon to that resource set,
+in normal and white text variants. Reuse the original mark without visual
+effects. Put the generated 1×/2×/3× assets under the Prism-owned overlay and
+gate the GRIT paths with the same ordinary-build condition. Keep the page's
+technical Chromium version and attribution visible. Verify the rendered page
+in light and dark modes after the resource build.
+
 ## Verification
 
 Check the source SVG and PNG dimensions/alpha at 16, 32, 64, 128, and 256 px.

@@ -43,6 +43,13 @@ def main() -> int:
         for source in sorted(theme_root.rglob("*"))
         if source.is_file()
     )
+    components_root = ROOT / "branding" / "components-resources"
+    sources.extend(
+        (source, checkout / "components" / "resources" /
+         source.relative_to(components_root))
+        for source in sorted(components_root.rglob("*"))
+        if source.is_file()
+    )
     for source, destination in sources:
         relative = destination.relative_to(checkout)
         if source.is_symlink() or destination.is_symlink():
