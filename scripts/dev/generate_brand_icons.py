@@ -41,6 +41,8 @@ def main() -> None:
                 THEME / directory / "prism" /
                 f"product_logo_{logical_size}.png",
             )
+        render(SOURCE, f"{16 * scale}x{16 * scale}",
+               THEME / directory / "prism" / "favicon_ntp.png")
         resources = COMPONENTS / directory / "prism"
         render(SOURCE, f"{16 * scale}x{16 * scale}",
                resources / "favicon_product.png")

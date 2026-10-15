@@ -80,10 +80,26 @@ index c8fb1b8e88..28d044e211 100644
              </else>
            </if> <!-- _is_chrome_for_testing_branded -->
 diff --git a/chrome/app/theme/theme_resources.grd b/chrome/app/theme/theme_resources.grd
-index 538b8a6f07..22b1ef694f 100644
+index 538b8a6f07..6b2d52e459 100644
 --- a/chrome/app/theme/theme_resources.grd
 +++ b/chrome/app/theme/theme_resources.grd
-@@ -149,7 +149,14 @@
+@@ -119,7 +119,14 @@
+         <structure type="chrome_scaled_image" name="IDR_NOTIFICATION_EASYUNLOCK_ENABLED" file="cros/notification_easyunlock_enabled.png" />
+       </if>
+       <if expr="enable_webui_ntp">
+-        <structure type="chrome_scaled_image" name="IDR_NTP_FAVICON" file="common/favicon_ntp.png" />
++        <if expr="is_prism_browser">
++          <then>
++            <structure type="chrome_scaled_image" name="IDR_NTP_FAVICON" file="prism/favicon_ntp.png" />
++          </then>
++          <else>
++            <structure type="chrome_scaled_image" name="IDR_NTP_FAVICON" file="common/favicon_ntp.png" />
++          </else>
++        </if>
+       </if>
+       <if expr="not is_android">
+         <if expr="_google_chrome">
+@@ -149,7 +156,14 @@
        </if>
        <structure type="chrome_scaled_image" name="IDR_PLUGINS_FAVICON" file="common/favicon_plugins.png" />
        <structure type="chrome_scaled_image" name="IDR_PRERENDER" file="common/prerender_succeed_icon.png" />
@@ -99,7 +115,7 @@ index 538b8a6f07..22b1ef694f 100644
        <if expr="not is_android">
            <structure type="chrome_scaled_image" name="IDR_PRICE_TRACKING_ON_IOS_ICON" file="common/price_tracking_on_ios.png" />
        </if>
-@@ -176,14 +183,21 @@
+@@ -176,14 +190,21 @@
            <structure type="chrome_scaled_image" name="IDR_PRODUCT_LOGO_ENTERPRISE_WHITE" file="${branding_path_component}/product_logo_enterprise_white.png" />
          </then>
          <else> <!-- not _google_chrome -->

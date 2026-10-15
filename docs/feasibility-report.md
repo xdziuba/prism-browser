@@ -247,7 +247,7 @@ and `chrome://version` naming smoke all passed afterward. An isolated Xvfb
 launch displayed a normal browser window, but the X11 window lacked a
 `_NET_WM_ICON` property in that environment, so the displayed window-manager
 icon is **unverified**. The new-tab favicon still showed Chromium art because
-it comes from a separate components resource. WebUI display of the patched
+it uses a separate `IDR_NTP_FAVICON` theme resource. WebUI display of the patched
 SVG, executable icon, installer/desktop integration, and Windows appearance
 also remain **unverified** for this logo change.
 
@@ -274,9 +274,23 @@ The light and dark page crops were reviewed visually:
 `docs/evidence/version-logo-light-linux-20261015.png` and
 `docs/evidence/version-logo-dark-linux-20261015.png`. The page still shows
 Chromium attribution. Ordinary-page/Prism WebUI smoke passed after the pack
-update. New-tab favicon, installer/desktop icons, native window-manager icon,
-Windows appearance, and genuine high-contrast behavior remain separate,
-**unverified** branding surfaces.
+update. At that point the new-tab favicon, installer/desktop icons, native
+window-manager icon, Windows appearance, and genuine high-contrast behavior
+remained separate, **unverified** branding surfaces.
+
+## New-tab favicon follow-up — 2026-10-15
+
+The decision is appended to `docs/design/native-logo.md`. The original Prism
+16 px mark now also provides `IDR_NTP_FAVICON` at 1×/2×/3× in the existing
+theme resource patch `0008` (regenerated because it owns the same upstream
+file). `scripts/dev/apply_chromium_patches.py` reports all nine patches already
+applied. `autoninja -j1 -C out/PrismFeasibility chrome` passed with four local
+resource actions in 6.10 seconds and no executable relink. Final 100% and 200%
+packs contain exact Prism PNG bytes for the new-tab icon. An isolated headed
+Linux session loaded `chrome://new-tab-page/`; visual evidence at
+`docs/evidence/new-tab-prism-icon-linux-20261015.png` shows the Prism mark in
+the tab. Ordinary-page and Prism WebUI smoke passed afterward. Native
+window-manager/desktop and Windows icons remain **unverified**.
 
 ## Decisions and limitations
 

@@ -30,6 +30,15 @@ gate the GRIT paths with the same ordinary-build condition. Keep the page's
 technical Chromium version and attribution visible. Verify the rendered page
 in light and dark modes after the resource build.
 
+## New-tab favicon follow-up
+
+The new tab gets `IDR_NTP_FAVICON` from the theme pack, independently of the
+product logo resources. Use the same 16 px Prism mark for that icon, with
+pre-rendered 1×/2×/3× sizes. Keep the change behind the existing Prism-only
+GRIT condition. Verify the packed bytes and the tab icon in a headed Linux
+window. This does not change page content, default search, or any installed
+desktop icon.
+
 ## Verification
 
 Check the source SVG and PNG dimensions/alpha at 16, 32, 64, 128, and 256 px.
