@@ -32,10 +32,19 @@ def main() -> int:
     if actual != expected:
         parser.error(f"Chromium checkout is {actual}, expected {expected}")
 
-    sources = sorted(path for path in (ROOT / "prism").rglob("*") if path.is_file())
-    for source in sources:
-        relative = source.relative_to(ROOT)
-        destination = checkout / relative
+    sources = [
+        (source, checkout / source.relative_to(ROOT))
+        for source in sorted((ROOT / "prism").rglob("*"))
+        if source.is_file()
+    ]
+    theme_root = ROOT / "branding" / "chromium-theme"
+    sources.extend(
+        (source, checkout / "chrome" / "app" / "theme" / source.relative_to(theme_root))
+        for source in sorted(theme_root.rglob("*"))
+        if source.is_file()
+    )
+    for source, destination in sources:
+        relative = destination.relative_to(checkout)
         if source.is_symlink() or destination.is_symlink():
             parser.error(f"Symlinks are not allowed in the overlay: {relative}")
         parent = destination.parent

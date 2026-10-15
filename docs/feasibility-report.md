@@ -220,6 +220,37 @@ generic `chrome`, so the native window-title suffix itself is **unverified**
 there. First-run text, app-menu accessible name, icon, desktop integration,
 and Windows appearance are also **unverified**.
 
+## Native logo resource slice — 2026-10-14
+
+`docs/design/native-logo.md` records the original faceted Prism mark and the
+limited resource-pack scope. `branding/prism-logo.svg` is the master. The
+generated PNGs are 16/32 px at 1×, 2×, and 3×, plus 64/128/256 px unscaled;
+`magick identify` confirmed their dimensions. The icon remains clear as a
+two-facet silhouette at 16 px. `scripts/dev/install_overlay.py` stages these
+files under `chrome/app/theme/` without overwriting unrelated upstream art.
+Patch `0008-prism-native-logo-resources.patch` changes three GRIT/GN files and
+uses a condition that excludes branded Chrome and Chrome for Testing.
+
+`scripts/dev/apply_chromium_patches.py` reported all eight patches already
+applied. The single-job `chrome` command regenerated its Ninja graph and
+reported thousands of downstream actions; it was interrupted after three
+successful resource actions to respect the current limit on large builds.
+There was no compiler failure. The isolated single-job GRIT targets
+`chrome/app/theme:theme_resources` and
+`chrome/app/theme:chrome_unscaled_resources` then succeeded. The subsequent
+`autoninja -j1 -C out/PrismFeasibility chrome` finished successfully in 4.56
+seconds, executing three resource-pack actions; the executable itself was not
+relinked. Direct inspection of the final `chrome_100_percent.pak` and
+`resources.pak` confirmed exact 16/32/128 px Prism PNG bytes and, after gzip
+decompression, the Prism SVG. Ordinary-page/Prism WebUI, F12, native-component,
+and `chrome://version` naming smoke all passed afterward. An isolated Xvfb
+launch displayed a normal browser window, but the X11 window lacked a
+`_NET_WM_ICON` property in that environment, so the displayed window-manager
+icon is **unverified**. The new-tab favicon still showed Chromium art because
+it comes from a separate components resource. WebUI display of the patched
+SVG, executable icon, installer/desktop integration, and Windows appearance
+also remain **unverified** for this logo change.
+
 ## Decisions and limitations
 
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.

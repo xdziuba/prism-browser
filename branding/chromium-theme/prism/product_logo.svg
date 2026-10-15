@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Prism">
+  <rect width="256" height="256" rx="58" fill="#142730"/>
+  <path d="M128 43 42 193h172Z" fill="#78C9D0"/>
+  <path d="M128 43 42 193h40l46-81Z" fill="#AEE7DD"/>
+  <path d="M42 193h172l-23-40H65Z" fill="#D9F4ED"/>
+  <path d="m128 112-46 81h92Z" fill="#142730"/>
+</svg>
