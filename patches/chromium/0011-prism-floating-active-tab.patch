@@ -1,0 +1,47 @@
+diff --git a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
+index 5e8bf7705c..ccad183b38 100644
+--- a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
++++ b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
+@@ -11,6 +11,7 @@
+ #include "base/i18n/rtl.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/numerics/safe_conversions.h"
++#include "build/build_config.h"
+ #include "cc/paint/paint_flags.h"
+ #include "chrome/browser/themes/theme_properties.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+@@ -88,9 +89,33 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+                                    tab_style()->GetSeparatorSize().width()) *
+                                   scale;
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  // Keep the upstream hit path and special tab geometries. A Prism active tab
++  // uses the existing detached highlight silhouette as its material surface.
++  const bool paint_active_path = path_type == TabStyle::PathType::kActiveTab ||
++                                 path_type == TabStyle::PathType::kBorder;
++  const auto* color_provider =
++      paint_active_path ? delegate_->GetView()->GetColorProvider() : nullptr;
++  const SkColor active_background =
++      color_provider
++          ? color_provider->GetColor(kColorTabBackgroundActiveFrameActive)
++          : SK_ColorTRANSPARENT;
++  const bool prism_surface =
++      active_background == SkColorSetRGB(0x2C, 0x39, 0x42) ||
++      active_background == SkColorSetRGB(0xF5, 0xF9, 0xFB);
++  const bool floating_active_tab =
++      prism_surface && delegate_->IsActive() && !delegate_->IsPinned() &&
++      !delegate_->IsSplit() && !delegate_->GetGroup().has_value() &&
++      !delegate_->IsClosing() && !delegate_->IsDragging() &&
++      !delegate_->GetView()->GetThemeProvider()->HasCustomImage(
++          IDR_THEME_TOOLBAR);
++#else
++  const bool floating_active_tab = false;
++#endif
++
+   // Selected, hover, and inactive tab fills are a detached squarcle tab.
+   if (path_type == TabStyle::PathType::kHighlight ||
+-      path_type == TabStyle::PathType::kHitTest) {
++      path_type == TabStyle::PathType::kHitTest || floating_active_tab) {
+     float top_left_corner_radius = content_corner_radius;
+     float top_right_corner_radius = content_corner_radius;
+     float bottom_left_corner_radius = content_corner_radius;

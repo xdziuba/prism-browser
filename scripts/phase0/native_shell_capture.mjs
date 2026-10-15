@@ -41,6 +41,16 @@ try {
   });
   const page = browser.pages()[0] ?? await browser.newPage();
   await page.goto('data:text/html,<title>Prism UI preview</title><body style="margin:0;background:white;font:32px sans-serif;padding:80px">Prism browser UI</body>');
+  if (process.env.PRISM_NATIVE_TAB_SET === '1') {
+    const second = await browser.newPage();
+    await second.goto('data:text/html,<title>Second page</title><body>Second page</body>');
+    const third = await browser.newPage();
+    await third.goto('data:text/html,<title>Third page</title><body>Third page</body>');
+    await second.bringToFront();
+    await second.keyboard.press('Control+Tab');
+    await third.waitForFunction(() => document.visibilityState === 'visible');
+    await second.bringToFront();
+  }
   await page.waitForTimeout(4000);
   const result = spawnSync('import', [
     '-display', display, '-window', 'root', screenshotPath,

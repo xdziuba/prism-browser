@@ -224,6 +224,32 @@ normal scale; the screenshots were reviewed visually. Ordinary-page/WebUI,
 F12, native-component, and branding smoke passed after this relink. Linux
 fallback remains opaque, and actual translucency remains unverified.
 
+### Floating active tab material — 2026-10-15
+
+`docs/design/native-floating-tab-material.md` scopes a small native geometry
+change. Patch `0011-prism-floating-active-tab.patch` reuses Chromium's detached
+rounded highlight path for the active horizontal tab fill and stroke in the
+ordinary Prism palette. The hit-test path, layout, pinned/split/grouped/closing
+and dragging tabs, image themes, and non-Prism/high-contrast paths are left on
+their existing geometry. The patch checker reported all eleven patches
+already applied. The final `autoninja -j1 -C out/PrismFeasibility chrome`
+incremental build passed in 15.03 seconds with one C++ object and one link.
+
+With three synthetic tabs in an isolated X11 browser, the capture helper
+switched tabs by Ctrl+Tab and produced reviewed light and dark captures at
+1280 px, a narrow light capture at 700 px, and a forced-contrast capture:
+`docs/evidence/native-floating-tabs-{light,dark,narrow,forced-contrast}-linux-20261015.png`.
+The active tab is visibly detached from the toolbar in the ordinary light and
+dark palettes, labels and controls remain legible at 700 px, and the
+forced-contrast palette retains the upstream connected appearance. The
+planned active-tab text/surface color pairs calculate to 12.65:1 light and
+10.91:1 dark. This is a visual check, not a full accessibility audit. On the
+built browser, ordinary-page/Prism WebUI, F12/DevTools, and native media
+component smoke tests passed; ordinary-page/WebUI smoke passed again after
+the final no-behavior guard optimization. True backdrop blur, compositor
+behavior, OS reduced-transparency handling, Windows geometry, and a complete
+native UI redesign remain **unverified**.
+
 ## Native branding string slice — 2026-10-14
 
 `docs/design/native-branding.md` scopes the first name change, and patch
