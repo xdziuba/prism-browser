@@ -9,9 +9,12 @@ source_set("prism_ai_ui") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/side_panel:side_panel",
+    "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/webui/top_chrome",
     "//chrome/browser/ui/webui:webui_util",
+    "//components/sessions:sessions",
     "//content/public/browser",
+    "//prism/ai:core",
     "//prism/ai:chromium",
     "//prism/credentials",
   ]

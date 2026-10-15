@@ -376,6 +376,28 @@ window-manager/desktop and Windows icons remain **unverified**.
 
 ## Decisions and limitations
 
+### Selected-tabs context preview — 2026-10-15
+
+`docs/design/selected-tabs-context-preview.md` records the native-selection,
+task-scoped READ and atomic refusal design. Prism WebUI now previews redacted,
+bounded visible text from two or three selected HTTP(S) tabs without sending
+content to a model. A page navigation, internal tab, profile mismatch, or
+invalid selection aborts disclosure. WebUI sends only a fixed command; the
+browser resolves tab IDs and navigation entries itself. The two preview
+buttons share a busy state and clear pending context on panel hide.
+
+`gn gen` completed with 36,683 targets and `gn check` passed for
+`//prism/ui/webui:prism_ai_ui`; the source-built Linux `chrome` target then
+linked with `autoninja -j1`. The dedicated
+`scripts/phase0/selected_tabs_preview_smoke.mjs` passed on isolated X11 for
+two selected tabs, bounded redaction, changed navigation, one-tab and internal
+tab refusals, and the four-tab cap. The existing page-context preview,
+side-panel, ordinary-page/WebUI and F12 smoke tests passed after the final
+C++ build. The reviewed screenshot is
+`docs/evidence/phase2-selected-tabs-preview-linux-20261015.png`.
+No OpenAI call was made; Windows behavior and a live model workflow remain
+**unverified**. No upstream Chromium file changed in this slice.
+
 ### Linux installer input slice — 2026-10-15
 
 `docs/design/linux-installer-identity.md` records a separate package identity

@@ -1,10 +1,12 @@
 #include "prism/ui/webui/prism_ai_ui.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/environment.h"
@@ -13,6 +15,7 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/weak_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
@@ -22,6 +25,8 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -84,10 +89,14 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   }
 
   void StopForPanelHide() {
-    preview_pending_ = false;
+    const bool preview_was_pending = preview_pending_;
     if (preview_tools_) {
       preview_tools_->Stop();
       preview_tools_.reset();
+    }
+    ClearPreviewState();
+    if (preview_was_pending && IsJavascriptAllowed()) {
+      PreviewError("Preview stopped when the panel closed.");
     }
     if (session_) {
       session_->Stop();
@@ -137,15 +146,19 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
         "prismPreviewPage",
         base::BindRepeating(&PrismAiMessageHandler::HandlePreviewPage,
                             base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "prismPreviewSelectedTabs",
+        base::BindRepeating(&PrismAiMessageHandler::HandlePreviewSelectedTabs,
+                            base::Unretained(this)));
   }
 
   void OnJavascriptDisallowed() override {
     weak_factory_.InvalidateWeakPtrs();
-    preview_pending_ = false;
     if (preview_tools_) {
       preview_tools_->Stop();
       preview_tools_.reset();
     }
+    ClearPreviewState();
     session_.reset();
   }
 
@@ -155,6 +168,94 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
     response.Set("ok", false);
     response.Set("error", message);
     FireWebUIListener("prism-page-preview", response);
+  }
+
+  void ClearPreviewState() {
+    preview_pending_ = false;
+    preview_tab_ids_.clear();
+    preview_navigation_ids_.clear();
+    preview_index_ = 0;
+    preview_text_.clear();
+    preview_origin_.clear();
+    preview_truncated_ = false;
+    preview_multiple_ = false;
+    preview_browser_.reset();
+  }
+
+  bool SubmitPreviewTab() {
+    if (!preview_tools_ || preview_index_ >= preview_tab_ids_.size()) {
+      return false;
+    }
+    return preview_tools_
+               ->Submit(ai::PageSnapshot{preview_tab_ids_[preview_index_]})
+               .state == ai::ActionState::kStarted;
+  }
+
+  void StartPreview(BrowserWindowInterface* browser,
+                    std::vector<int> tab_ids,
+                    std::vector<int> navigation_ids,
+                    bool multiple) {
+    preview_tools_.reset();
+    preview_tab_ids_ = std::move(tab_ids);
+    preview_navigation_ids_ = std::move(navigation_ids);
+    preview_index_ = 0;
+    preview_text_.clear();
+    preview_origin_.clear();
+    preview_truncated_ = false;
+    preview_multiple_ = multiple;
+    preview_browser_ = browser->GetWeakPtr();
+    preview_tools_ =
+        std::make_unique<ai::ChromiumBrowserToolService>(preview_browser_);
+    preview_tools_->SetCompletionObserver(base::BindRepeating(
+        &PrismAiMessageHandler::OnPreviewComplete, weak_factory_.GetWeakPtr()));
+    if (!preview_tools_->BeginTask()) {
+      preview_tools_.reset();
+      ClearPreviewState();
+      PreviewError("Page preview could not start.");
+      return;
+    }
+    preview_tools_->Grant(ai::Capability::kRead);
+    if (!SubmitPreviewTab()) {
+      preview_tools_->Stop();
+      ClearPreviewState();
+      PreviewError("The selected page could not be read.");
+      return;
+    }
+    preview_pending_ = true;
+  }
+
+  bool PreviewTabsStillCurrent() const {
+    if (!preview_browser_ || preview_browser_->IsDeleteScheduled()) {
+      return false;
+    }
+    TabStripModel* tabs = preview_browser_->GetTabStripModel();
+    if (!tabs) {
+      return false;
+    }
+    for (std::size_t selected = 0; selected < preview_tab_ids_.size();
+         ++selected) {
+      bool found = false;
+      for (int index = 0; index < tabs->count(); ++index) {
+        content::WebContents* contents = tabs->GetWebContentsAt(index);
+        if (!contents || sessions::SessionTabHelper::IdForTab(contents).id() !=
+                             preview_tab_ids_[selected]) {
+          continue;
+        }
+        content::NavigationEntry* entry =
+            contents->GetController().GetLastCommittedEntry();
+        if (!entry ||
+            entry->GetUniqueID() != preview_navigation_ids_[selected] ||
+            !contents->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {
+          return false;
+        }
+        found = true;
+        break;
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void HandlePreviewPage(const base::ListValue& args) {
@@ -184,48 +285,119 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
       PreviewError("The active tab is not ready for a preview.");
       return;
     }
-    preview_tools_.reset();
-    preview_tools_ =
-        std::make_unique<ai::ChromiumBrowserToolService>(browser->GetWeakPtr());
-    preview_tools_->SetCompletionObserver(base::BindRepeating(
-        &PrismAiMessageHandler::OnPreviewComplete, weak_factory_.GetWeakPtr()));
-    if (!preview_tools_->BeginTask()) {
-      preview_tools_.reset();
-      PreviewError("Page preview could not start.");
+    content::NavigationEntry* entry =
+        page->GetController().GetLastCommittedEntry();
+    if (!entry) {
+      PreviewError("The active tab is not ready for a preview.");
       return;
     }
-    preview_tools_->Grant(ai::Capability::kRead);
-    ai::Submission submission =
-        preview_tools_->Submit(ai::PageSnapshot{tab_id});
-    if (submission.state != ai::ActionState::kStarted) {
-      preview_tools_->Stop();
-      PreviewError("The active page could not be read.");
+    StartPreview(browser, {tab_id}, {entry->GetUniqueID()}, false);
+  }
+
+  void HandlePreviewSelectedTabs(const base::ListValue& args) {
+    if (!IsJavascriptAllowed() || !args.empty() ||
+        !web_ui()->GetController()->GetAs<PrismAiPanelUI>() ||
+        preview_pending_) {
       return;
     }
-    preview_pending_ = true;
+    Profile* profile = Profile::FromWebUI(web_ui());
+    BrowserWindowInterface* browser =
+        webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+    if (!profile || profile->IsOffTheRecord() || !browser ||
+        browser->GetProfile() != profile || browser->IsDeleteScheduled()) {
+      PreviewError("Selected-tab preview is unavailable in this window.");
+      return;
+    }
+    TabStripModel* tabs = browser->GetTabStripModel();
+    if (!tabs) {
+      PreviewError("No tabs are available in this window.");
+      return;
+    }
+    const auto& indices =
+        tabs->selection_model().GetListSelectionModel().selected_indices();
+    if (indices.size() < 2 || indices.size() > 3) {
+      PreviewError("Select two or three tabs in the tab strip first.");
+      return;
+    }
+    std::vector<int> tab_ids;
+    std::vector<int> navigation_ids;
+    for (std::size_t index : indices) {
+      content::WebContents* page =
+          index < static_cast<std::size_t>(tabs->count())
+              ? tabs->GetWebContentsAt(static_cast<int>(index))
+              : nullptr;
+      content::NavigationEntry* entry =
+          page ? page->GetController().GetLastCommittedEntry() : nullptr;
+      const int tab_id =
+          page ? sessions::SessionTabHelper::IdForTab(page).id() : 0;
+      if (!page || !page->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
+          !entry || tab_id <= 0) {
+        PreviewError("Only selected HTTP or HTTPS tabs can be previewed.");
+        return;
+      }
+      tab_ids.push_back(tab_id);
+      navigation_ids.push_back(entry->GetUniqueID());
+    }
+    StartPreview(browser, std::move(tab_ids), std::move(navigation_ids), true);
   }
 
   void OnPreviewComplete(ai::Submission submission) {
-    preview_pending_ = false;
-    if (preview_tools_) {
-      preview_tools_->Stop();
-    }
-    if (!IsJavascriptAllowed()) {
+    if (!preview_pending_ || !IsJavascriptAllowed()) {
       return;
     }
     const auto* snapshot =
         std::get_if<std::shared_ptr<const ai::PageContextSnapshot>>(
             &submission.output);
     if (submission.state != ai::ActionState::kCompleted || !snapshot ||
-        !*snapshot) {
-      PreviewError("The page changed or its context could not be read.");
+        !*snapshot || !PreviewTabsStillCurrent()) {
+      preview_tools_->Stop();
+      ClearPreviewState();
+      PreviewError("A selected page changed or its context could not be read.");
       return;
     }
+    const int count = static_cast<int>(preview_tab_ids_.size());
+    if (preview_multiple_) {
+      constexpr std::size_t kMaxTextPerTab = 7 * 1024;
+      const std::string_view origin =
+          base::TruncateUTF8ToByteSize((*snapshot)->origin, 512);
+      const std::string_view text = base::TruncateUTF8ToByteSize(
+          (*snapshot)->visible_text, kMaxTextPerTab);
+      if (!preview_text_.empty()) {
+        preview_text_.append("\n\n");
+      }
+      preview_text_.append("Tab ");
+      preview_text_.append(base::NumberToString(preview_index_ + 1));
+      preview_text_.append(" · ");
+      preview_text_.append(origin);
+      preview_text_.append("\n");
+      preview_text_.append(text);
+      preview_truncated_ |= (*snapshot)->truncated ||
+                            origin.size() < (*snapshot)->origin.size() ||
+                            text.size() < (*snapshot)->visible_text.size();
+    } else {
+      preview_text_ = (*snapshot)->visible_text;
+      preview_origin_ = (*snapshot)->origin;
+      preview_truncated_ = (*snapshot)->truncated;
+    }
+    ++preview_index_;
+    if (preview_index_ < preview_tab_ids_.size()) {
+      if (SubmitPreviewTab()) {
+        return;
+      }
+      preview_tools_->Stop();
+      ClearPreviewState();
+      PreviewError("A selected page could not be read.");
+      return;
+    }
+    preview_tools_->Stop();
     base::DictValue response;
     response.Set("ok", true);
-    response.Set("origin", (*snapshot)->origin);
-    response.Set("text", (*snapshot)->visible_text);
-    response.Set("truncated", (*snapshot)->truncated);
+    response.Set("origin",
+                 preview_multiple_ ? "Selected tabs" : preview_origin_);
+    response.Set("text", preview_text_);
+    response.Set("truncated", preview_truncated_);
+    response.Set("count", count);
+    ClearPreviewState();
     FireWebUIListener("prism-page-preview", response);
   }
 
@@ -510,6 +682,14 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   std::unique_ptr<ai::AiSessionService> session_;
   std::unique_ptr<ai::ChromiumBrowserToolService> preview_tools_;
   bool preview_pending_ = false;
+  bool preview_multiple_ = false;
+  bool preview_truncated_ = false;
+  std::size_t preview_index_ = 0;
+  std::vector<int> preview_tab_ids_;
+  std::vector<int> preview_navigation_ids_;
+  std::string preview_text_;
+  std::string preview_origin_;
+  base::WeakPtr<BrowserWindowInterface> preview_browser_;
   base::WeakPtrFactory<PrismAiMessageHandler> weak_factory_{this};
 };
 
