@@ -50,6 +50,13 @@ def main() -> int:
         for source in sorted(components_root.rglob("*"))
         if source.is_file()
     )
+    linux_packaging_root = ROOT / "branding" / "linux-packaging"
+    sources.extend(
+        (source, checkout / "chrome" / "installer" / "linux" / "prism" /
+         source.relative_to(linux_packaging_root))
+        for source in sorted(linux_packaging_root.rglob("*"))
+        if source.is_file()
+    )
     for source, destination in sources:
         relative = destination.relative_to(checkout)
         if source.is_symlink() or destination.is_symlink():

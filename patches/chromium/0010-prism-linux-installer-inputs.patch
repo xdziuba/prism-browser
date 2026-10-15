@@ -1,0 +1,83 @@
+diff --git a/chrome/installer/linux/BUILD.gn b/chrome/installer/linux/BUILD.gn
+index 2a75b4c07d..e0eda48971 100644
+--- a/chrome/installer/linux/BUILD.gn
++++ b/chrome/installer/linux/BUILD.gn
+@@ -34,6 +34,10 @@ declare_args() {
+ 
+ assert(is_linux)
+ 
++is_prism_linux = !is_chrome_branded && !is_chrome_for_testing
++assert(!is_prism_linux || !enable_flatpak,
++       "Prism Flatpak identity requires a separate installer change")
++
+ if (current_cpu == "x86") {
+   deb_arch = "i386"
+   rpm_arch = "i386"
+@@ -321,6 +325,8 @@ action("deb_repo_package") {
+ 
+   if (is_chrome_branded) {
+     package = "google-chrome-repo"
++  } else if (is_prism_linux) {
++    package = "prism-browser-repo"
+   } else {
+     package = "chromium-browser-repo"
+   }
+@@ -348,6 +354,10 @@ action("deb_repo_package") {
+ branding_dir = "//chrome/app/theme/$branding_path_component"
+ branding_dir_100 =
+     "//chrome/app/theme/default_100_percent/$branding_path_component"
++if (is_prism_linux) {
++  branding_dir = "//chrome/app/theme/prism"
++  branding_dir_100 = "//chrome/app/theme/default_100_percent/prism"
++}
+ 
+ copy("common_packaging_files") {
+   visibility = [ ":*" ]
+@@ -373,6 +383,8 @@ copy("common_packaging_files") {
+ 
+   if (is_chrome_branded) {
+     sources += [ "common/google-chrome.info" ]
++  } else if (is_prism_linux) {
++    sources += [ "prism/chromium-browser.info" ]
+   } else {
+     sources += [ "common/chromium-browser.info" ]
+   }
+@@ -458,9 +470,13 @@ if (!is_chromeos) {
+ process_version("save_build_info") {
+   # Just output the default version info variables (no template).
+   process_only = true
++  installer_branding_file = branding_file_path
++  if (is_prism_linux) {
++    installer_branding_file = "$branding_dir/BRANDING"
++  }
+   sources = [
+     "//chrome/VERSION",
+-    branding_file_path,
++    installer_branding_file,
+     lastchange_file,
+   ]
+   output = "$root_out_dir/installer/version.txt"
+@@ -564,6 +580,8 @@ template("linux_package") {
+ 
+   if (is_chrome_branded) {
+     package = "google-chrome"
++  } else if (is_prism_linux) {
++    package = "prism-browser"
+   } else {
+     package = "chromium-browser"
+   }
+diff --git a/chrome/installer/linux/common/installer.py b/chrome/installer/linux/common/installer.py
+index b2b6f8c06d..40aa35e844 100644
+--- a/chrome/installer/linux/common/installer.py
++++ b/chrome/installer/linux/common/installer.py
+@@ -897,7 +897,9 @@ class InstallerConfig:
+             if self.channel not in ["beta", "unstable", "canary"]:
+                 self.uri_scheme = "x-scheme-handler/google-chrome;"
+         else:
+-            self.uri_scheme = "x-scheme-handler/chromium;"
++            self.uri_scheme = self.info_vars.get(
++                "URI_SCHEME", "x-scheme-handler/chromium;"
++            )
+ 
+         # apparmor profile
+         artifacts.append(

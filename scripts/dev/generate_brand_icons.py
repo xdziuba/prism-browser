@@ -32,6 +32,9 @@ def main() -> None:
     for size in (64, 128, 256):
         render(SOURCE, f"{size}x{size}",
                THEME / "prism" / f"product_logo_{size}.png")
+    for size in (24, 48, 64, 128, 256):
+        render(SOURCE, f"{size}x{size}",
+               THEME / "prism" / "linux" / f"product_logo_{size}.png")
     for scale, directory in ((1, "default_100_percent"),
                              (2, "default_200_percent"),
                              (3, "default_300_percent")):
@@ -41,6 +44,12 @@ def main() -> None:
                 THEME / directory / "prism" /
                 f"product_logo_{logical_size}.png",
             )
+            if scale == 1:
+                render(
+                    SOURCE, f"{logical_size}x{logical_size}",
+                    THEME / directory / "prism" / "linux" /
+                    f"product_logo_{logical_size}.png",
+                )
         render(SOURCE, f"{16 * scale}x{16 * scale}",
                THEME / directory / "prism" / "favicon_ntp.png")
         resources = COMPONENTS / directory / "prism"

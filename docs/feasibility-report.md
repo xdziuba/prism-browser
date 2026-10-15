@@ -294,6 +294,46 @@ window-manager/desktop and Windows icons remain **unverified**.
 
 ## Decisions and limitations
 
+### Linux installer input slice — 2026-10-15
+
+`docs/design/linux-installer-identity.md` records a separate package identity
+for ordinary Linux builds. `branding/chromium-theme/prism/BRANDING`, a Prism
+installer info file, and seven Linux icon sizes were staged without modifying
+upstream icon files. Patch `0010-prism-linux-installer-inputs.patch` changes
+`chrome/installer/linux/BUILD.gn` and one metadata lookup in
+`common/installer.py`. It selects these inputs, a `prism-browser` DEB/RPM
+name, and a distinct URI scheme for the ordinary unbranded build, preserving
+Chrome and Chrome for Testing. Prism Flatpak stays disabled until its app ID
+and developer metadata can be changed coherently.
+
+The existing component-build output has no Linux installer targets, so the
+first target-only attempt there reported `unknown target`. A separate
+`out/PrismInstallerProbe` GN configuration (`is_component_build=false`,
+`enable_linux_installer=true`, `symbol_level=0`) generated 36,686 targets.
+`autoninja -j1` passed for `common_packaging_files`, `theme_files`, and
+`save_build_info` in 2.20 seconds (27 steps); a follow-up after GN formatting
+passed in 5.68 seconds (one process-version action). `magick identify`
+confirmed 16, 24, 32, 48, 64, 128, and 256 px PNGs; `cmp` matched staged
+BRANDING and installer info byte for byte with the repository. Chromium's
+installer parser read `PACKAGE=prism-browser`, `MENUNAME=Prism Browser`,
+`RDN=io.github.xdziuba.PrismBrowser`, and
+`PRODUCT_FULLNAME=Prism Browser`; GN declares
+`prism-browser-stable_157.0.8095.0-1_amd64.deb` and the corresponding RPM
+output. After the metadata update, the staging target passed again in 1.04
+seconds. The pinned installer's own parser selected `prism-browser`, and its
+template renderer produced a disposable `.desktop` file with `Name=Prism
+Browser`, `Icon=prism-browser`, `StartupWMClass=prism-browser`, and the Prism
+URI scheme. The patch checker reports all ten patches already applied.
+
+This proves installer **input generation only**. No DEB/RPM package was built
+or installed, no desktop entry or MIME registration was exercised, and the
+existing component-build browser executable was not relinked. Its prior
+browser runtime smoke evidence does not validate this packaging change.
+Public maintainer contact, package signing, release permissions, Flatpak,
+AppStream screenshot/metadata, actual window-class matching, Windows
+packaging, and the independent Phase 0 gates remain open. The
+GitHub no-reply address in the metadata is provisional for a local build.
+
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
 - The pinned checkout carries the Prism browser-tools, WebUI, and side-panel patches listed in `docs/upstream-patches.md`. The AI session is linked in the browser, and its fake-key start/stop lifecycle was exercised; a real AI conversation remains untested.
 - This Linux host exceeds the documented minimum memory but is below Chromium's recommended >16 GiB; the first build uses four parallel jobs.
