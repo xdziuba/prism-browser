@@ -88,12 +88,13 @@ PageContextInput BuildPageContextInput(const AccessibilityTreeInput& tree) {
       continue;
     }
     const AccessibilityNode& node = *found->second;
-    if (node.hidden || node.ignored || node.editable || node.protected_field ||
+    if (node.hidden || node.editable || node.protected_field ||
         node.role == AccessibilityRole::kTextField) {
       continue;
     }
 
-    if (IsVisibleText(node.role) || IsInteractive(node.role)) {
+    if (!node.ignored &&
+        (IsVisibleText(node.role) || IsInteractive(node.role))) {
       ContextNode context;
       context.node_id = static_cast<std::uint64_t>(id);
       context.role = RoleName(node.role);
@@ -120,7 +121,15 @@ PageContextInput BuildPageContextInput(const AccessibilityTreeInput& tree) {
     const std::size_t child_count = std::min(node.children.size(), kMaxAxNodes);
     output.truncated |= node.children.size() > child_count;
     for (std::size_t index = child_count; index > 0; --index) {
-      stack.push_back(node.children[index - 1]);
+      const std::int64_t child_id = node.children[index - 1];
+      const auto child = by_id.find(child_id);
+      if (node.role == AccessibilityRole::kHeading && !node.name.empty() &&
+          child != by_id.end() &&
+          child->second->role == AccessibilityRole::kStaticText &&
+          child->second->name == node.name) {
+        continue;
+      }
+      stack.push_back(child_id);
     }
   }
   return output;

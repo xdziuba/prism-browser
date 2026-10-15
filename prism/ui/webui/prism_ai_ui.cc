@@ -19,11 +19,16 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/sessions/content/session_tab_helper.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "prism/ai/ai_session_service.h"
+#include "prism/ai/chromium_browser_tool_service.h"
+#include "prism/ai/page_context.h"
 #include "prism/credentials/credential_store.h"
 #include "prism/ui/webui/resources.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -79,6 +84,11 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   }
 
   void StopForPanelHide() {
+    preview_pending_ = false;
+    if (preview_tools_) {
+      preview_tools_->Stop();
+      preview_tools_.reset();
+    }
     if (session_) {
       session_->Stop();
       session_.reset();
@@ -123,14 +133,102 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
         "prismOpenPanel",
         base::BindRepeating(&PrismAiMessageHandler::HandleOpenPanel,
                             base::Unretained(this)));
+    web_ui()->RegisterMessageCallback(
+        "prismPreviewPage",
+        base::BindRepeating(&PrismAiMessageHandler::HandlePreviewPage,
+                            base::Unretained(this)));
   }
 
   void OnJavascriptDisallowed() override {
     weak_factory_.InvalidateWeakPtrs();
+    preview_pending_ = false;
+    if (preview_tools_) {
+      preview_tools_->Stop();
+      preview_tools_.reset();
+    }
     session_.reset();
   }
 
  private:
+  void PreviewError(const char* message) {
+    base::DictValue response;
+    response.Set("ok", false);
+    response.Set("error", message);
+    FireWebUIListener("prism-page-preview", response);
+  }
+
+  void HandlePreviewPage(const base::ListValue& args) {
+    if (!IsJavascriptAllowed() || !args.empty() ||
+        !web_ui()->GetController()->GetAs<PrismAiPanelUI>()) {
+      return;
+    }
+    if (preview_pending_) {
+      return;
+    }
+    Profile* profile = Profile::FromWebUI(web_ui());
+    BrowserWindowInterface* browser =
+        webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+    if (!profile || profile->IsOffTheRecord() || !browser ||
+        browser->GetProfile() != profile || browser->IsDeleteScheduled()) {
+      PreviewError("Page preview is unavailable in this window.");
+      return;
+    }
+    TabStripModel* tabs = browser->GetTabStripModel();
+    content::WebContents* page = tabs ? tabs->GetActiveWebContents() : nullptr;
+    if (!page || !page->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {
+      PreviewError("Open an HTTP or HTTPS page to preview its context.");
+      return;
+    }
+    const int tab_id = sessions::SessionTabHelper::IdForTab(page).id();
+    if (tab_id <= 0) {
+      PreviewError("The active tab is not ready for a preview.");
+      return;
+    }
+    preview_tools_.reset();
+    preview_tools_ =
+        std::make_unique<ai::ChromiumBrowserToolService>(browser->GetWeakPtr());
+    preview_tools_->SetCompletionObserver(base::BindRepeating(
+        &PrismAiMessageHandler::OnPreviewComplete, weak_factory_.GetWeakPtr()));
+    if (!preview_tools_->BeginTask()) {
+      preview_tools_.reset();
+      PreviewError("Page preview could not start.");
+      return;
+    }
+    preview_tools_->Grant(ai::Capability::kRead);
+    ai::Submission submission =
+        preview_tools_->Submit(ai::PageSnapshot{tab_id});
+    if (submission.state != ai::ActionState::kStarted) {
+      preview_tools_->Stop();
+      PreviewError("The active page could not be read.");
+      return;
+    }
+    preview_pending_ = true;
+  }
+
+  void OnPreviewComplete(ai::Submission submission) {
+    preview_pending_ = false;
+    if (preview_tools_) {
+      preview_tools_->Stop();
+    }
+    if (!IsJavascriptAllowed()) {
+      return;
+    }
+    const auto* snapshot =
+        std::get_if<std::shared_ptr<const ai::PageContextSnapshot>>(
+            &submission.output);
+    if (submission.state != ai::ActionState::kCompleted || !snapshot ||
+        !*snapshot) {
+      PreviewError("The page changed or its context could not be read.");
+      return;
+    }
+    base::DictValue response;
+    response.Set("ok", true);
+    response.Set("origin", (*snapshot)->origin);
+    response.Set("text", (*snapshot)->visible_text);
+    response.Set("truncated", (*snapshot)->truncated);
+    FireWebUIListener("prism-page-preview", response);
+  }
+
   void HandleOpenPanel(const base::ListValue& args) {
     if (!IsJavascriptAllowed() || !args.empty() ||
         web_ui()->GetController()->GetAs<PrismAiPanelUI>()) {
@@ -410,6 +508,8 @@ class PrismAiMessageHandler : public content::WebUIMessageHandler {
   }
 
   std::unique_ptr<ai::AiSessionService> session_;
+  std::unique_ptr<ai::ChromiumBrowserToolService> preview_tools_;
+  bool preview_pending_ = false;
   base::WeakPtrFactory<PrismAiMessageHandler> weak_factory_{this};
 };
 

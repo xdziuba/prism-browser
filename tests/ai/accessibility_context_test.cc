@@ -78,10 +78,43 @@ void TestMalformedAndTruncatedTree() {
           "AX truncation should survive extraction");
 }
 
+void TestIgnoredLayoutWrapper() {
+  AccessibilityTreeInput tree;
+  tree.tab_id = 8;
+  tree.root_id = 1;
+  tree.origin = "https://example.test";
+  tree.nodes = {
+      {1, {2}, AccessibilityRole::kOther, ""},
+      {2, {3}, AccessibilityRole::kOther, "", false, true},
+      {3, {}, AccessibilityRole::kStaticText, "Readable child"},
+  };
+  const PageContextInput input = BuildPageContextInput(tree);
+  Require(input.nodes.size() == 1 &&
+              input.nodes[0].visible_text == "Readable child",
+          "an ignored layout wrapper must not hide its readable children");
+}
+
+void TestHeadingNameIsNotRepeatedByItsStaticChild() {
+  AccessibilityTreeInput tree;
+  tree.tab_id = 9;
+  tree.root_id = 1;
+  tree.nodes = {
+      {1, {2}, AccessibilityRole::kOther, ""},
+      {2, {3}, AccessibilityRole::kHeading, "Project title"},
+      {3, {}, AccessibilityRole::kStaticText, "Project title"},
+  };
+  const PageContextInput input = BuildPageContextInput(tree);
+  Require(
+      input.nodes.size() == 1 && input.nodes[0].visible_text == "Project title",
+      "heading text should not be repeated by an identical static child");
+}
+
 }  // namespace
 
 int main() {
   TestSensitiveSubtreesAndUnreachableNodes();
   TestMalformedAndTruncatedTree();
+  TestIgnoredLayoutWrapper();
+  TestHeadingNameIsNotRepeatedByItsStaticChild();
   std::cout << "accessibility context tests passed\n";
 }

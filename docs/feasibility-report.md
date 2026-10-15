@@ -54,6 +54,35 @@ The native Prism AI side panel is integrated through Chromium's global side-pane
 
 The page-context redactor could leak a credential value from quoted assignments or JSON, such as `api_key="value"`, and from authorization/cookie header lines with whitespace before the colon. A new adversarial host test first failed against the old scanner, then passed after handling quoted and unquoted values, optional key quotes, whitespace, quoted Bearer values, malformed closing quotes, and additional credential field names. See `docs/design/page-context-secret-redaction.md`. `g++ -std=c++20 -O0 -Wall -Wextra -Werror -I. tests/ai/page_context_test.cc prism/ai/page_context.cc -pthread -o /tmp/prism-page-context-test && /tmp/prism-page-context-test` passed. The source was copied into the pinned Chromium overlay and `/home/pawel/coding/prism-chromium-work/depot_tools/autoninja -j1 -C out/PrismFeasibility prism/ai:core` passed with one C++ compilation step in 2.45 seconds. `clang-format --dry-run --Werror` passed using the Chromium style. At the user's request to conserve RAM while other work runs on this host, `chrome` was **not relinked**; the existing browser binary does not include this edit, and browser runtime behavior for it is unverified. Unknown credential names and secrets without a recognizable field remain possible; network and console data require structural redaction before future AI exposure.
 
+### Local current-page read preview — 2026-10-15
+
+`docs/design/local-page-context-preview.md` records a user-invoked, local-only
+preview in the native Prism AI panel. It resolves the active HTTP(S) tab in the
+browser process, passes its read through the existing task-scoped permission
+broker, and displays the bounded, redacted accessibility snapshot without an
+API key or OpenAI request. The first browser smoke returned an empty snapshot:
+ignored AX layout wrappers were pruning visible descendants. Traversing those
+wrappers while still pruning hidden, editable, protected, and text-field
+subtrees fixed the read path. A separate duplicate-heading correction removes
+an identical static-text child when the parent heading already supplies it.
+
+The C++ host accessibility test compiled with `-Wall -Wextra -Werror` and
+passed, including the new ignored-wrapper and heading cases. The pinned Linux
+`chrome` target relinked with `-j1`; the final incremental pass completed in
+12.45 seconds with one C++ compile and one link. In an isolated X11 browser,
+`scripts/phase0/page_context_preview_smoke.mjs` passed for visible text and
+origin, redaction of a synthetic inline key, Authorization and Cookie header
+lines, omission of a form value and an
+`aria-hidden` subtree, fresh content after navigation, a refusal on
+`chrome://version/`, and no panel overflow. `side_panel_smoke.mjs`,
+`browser_smoke.py`, `devtools_f12_smoke.mjs`, and
+`command_palette_smoke.mjs` passed after the first fix; the final heading
+change was rechecked by the dedicated preview smoke. The reviewed capture is
+`docs/evidence/phase2-page-context-preview-linux-20261015.png`. This proves a
+local current-page read on synthetic content only. Selected-tab context,
+model summarization and Q&A, live OpenAI API, arbitrary-site fidelity, Windows,
+console/network analysis, and the independent Phase 0 gates remain open.
+
 The user also requested first-party SponsorBlock functionality with configurable settings and a built-in ad blocker. `docs/design/built-in-media-controls.md` records the staged approach and distribution, privacy, and YouTube compatibility gates. No SponsorBlock code, ad-blocking rules, or Chromium integration was added in this planning slice.
 
 ## Lightweight built-in media policy foundation, 2026-10-13
