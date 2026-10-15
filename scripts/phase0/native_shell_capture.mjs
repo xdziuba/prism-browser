@@ -51,6 +51,13 @@ try {
     await third.waitForFunction(() => document.visibilityState === 'visible');
     await second.bringToFront();
   }
+  if (process.env.PRISM_NATIVE_TAB_SET !== '1' &&
+      process.env.PRISM_NATIVE_FOCUS !== '1') {
+    await page.mouse.click(350, 300);
+  }
+  if (process.env.PRISM_NATIVE_FOCUS === '1') {
+    await page.keyboard.press('Control+L');
+  }
   await page.waitForTimeout(4000);
   const result = spawnSync('import', [
     '-display', display, '-window', 'root', screenshotPath,

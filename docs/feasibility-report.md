@@ -250,6 +250,33 @@ the final no-behavior guard optimization. True backdrop blur, compositor
 behavior, OS reduced-transparency handling, Windows geometry, and a complete
 native UI redesign remain **unverified**.
 
+### Location-bar capsule material — 2026-10-15
+
+`docs/design/native-location-bar-material.md` scopes an opaque second surface
+for the existing rounded address field. The regenerated mixer patch `0005`
+sets its ordinary dark/light fill to `#20323C`/`#FFFFFF`, and patch `0012`
+adds an idle-only blue-gray rim in `LocationBarView::RefreshBackground()`.
+Chromium's focus, in-progress input, popup, and high-contrast branches take
+precedence. The patch checker reported all twelve patches applied. The pinned
+Linux `chrome` target built with `-j1` in 29.35 seconds: two C++ objects and
+one relink, with no compiler or linker failure.
+
+On isolated X11 display `:101`, the capture helper produced and visually
+reviewed ordinary light/dark 1280 px, light 700 px, forced-contrast, and
+selected-address dark captures in
+`docs/evidence/native-location-{light,dark,narrow,forced-contrast,focused}-linux-20261015.png`.
+The unfocused capsule is distinct from the toolbar, its text and controls
+remain legible in the narrow capture, the selected address retains Chromium's
+focus outline, and forced contrast retains Chromium's palette. These are
+visual observations, not measured contrast or true backdrop translucency.
+`browser_smoke.py` passed ordinary page and Prism WebUI; `devtools_f12_smoke.mjs`
+passed F12; native component smoke passed identity, isolated script, five
+modules, inert providers, and restart. A Playwright keyboard-only attempt to
+type through the browser-owned address field timed out; it did not establish
+whether physical address entry works. Direct address-bar typing, Windows
+rendering, system reduced-transparency behavior, and actual OS backdrop blur
+remain **unverified**.
+
 ## Native branding string slice — 2026-10-14
 
 `docs/design/native-branding.md` scopes the first name change, and patch
