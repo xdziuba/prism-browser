@@ -48,3 +48,7 @@ vault removal, and live API interaction remain unverified.
 Calculated contrast ratios for the page background are 14.19:1 (light text),
 4.87:1 (light muted text), 13.35:1 (dark text), and 7.70:1 (dark muted text).
 Accent button text is 5.75:1 in light mode and 6.08:1 in dark mode.
+
+The 2026-10-15 follow-up in `docs/design/ai-shell-palette-alignment.md`
+supersedes the warm visual tokens and temporary header mark. The settings
+behavior and storage boundary described above remain the same.

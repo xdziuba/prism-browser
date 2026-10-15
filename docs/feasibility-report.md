@@ -334,6 +334,29 @@ AppStream screenshot/metadata, actual window-class matching, Windows
 packaging, and the independent Phase 0 gates remain open. The
 GitHub no-reply address in the metadata is provisional for a local build.
 
+### AI shell palette alignment — 2026-10-15
+
+`docs/design/ai-shell-palette-alignment.md` records a Prism-owned WebUI
+refinement: the original cyan mark replaces a temporary diamond glyph, and
+both AI page origins now share cool blue-gray light/dark tokens aligned with
+the native browser frame. The header remains the only translucent surface;
+solid and reduced-transparency fallbacks remain in CSS. No upstream Chromium
+file changed. `autoninja -j1 -C out/PrismFeasibility chrome` passed in 13.27
+seconds (one `prism_ai_ui.o` compile and one link action).
+
+On isolated X11 display `:101`, `settings_smoke.mjs` passed model persistence,
+storage boundary, and 420 px layout; `command_palette_smoke.mjs` passed its
+keyboard and Stop flow; `side_panel_smoke.mjs` passed panel lifecycle and
+Incognito exclusion; `browser_smoke.py` passed ordinary-page and WebUI load;
+and `devtools_f12_smoke.mjs` opened standard DevTools. Visual review of
+`docs/evidence/phase1-ai-settings-cool-light-linux-20261015.png`,
+`phase1-ai-settings-cool-dark-narrow-linux-20261015.png`, and
+`phase1-command-palette-cool-dark-linux-20261015.png` found legible controls,
+the original mark, and no narrow horizontal overflow. Calculated light/dark
+card text and control-boundary contrast ratios are in the design note.
+Windows appearance, OS-driven contrast, and reduced-transparency rendering
+are **unverified** for this follow-up. The full Phase 0 gates remain open.
+
 - Phase 0 stays on full Chromium; Electron, CEF, Qt WebEngine, and packaged Chromium are excluded from build proof.
 - The pinned checkout carries the Prism browser-tools, WebUI, and side-panel patches listed in `docs/upstream-patches.md`. The AI session is linked in the browser, and its fake-key start/stop lifecycle was exercised; a real AI conversation remains untested.
 - This Linux host exceeds the documented minimum memory but is below Chromium's recommended >16 GiB; the first build uses four parallel jobs.
