@@ -1,0 +1,50 @@
+diff --git a/chrome/browser/ui/views/toolbar/BUILD.gn b/chrome/browser/ui/views/toolbar/BUILD.gn
+index 4217e001e0..698d5f6a62 100644
+--- a/chrome/browser/ui/views/toolbar/BUILD.gn
++++ b/chrome/browser/ui/views/toolbar/BUILD.gn
+@@ -218,6 +218,13 @@ source_set("impl") {
+     "webui_toolbar_web_view.cc",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/native/prism_navigation_button.cc",
++      "//prism/ui/native/prism_navigation_button.h",
++    ]
++  }
++
+   if (is_mac) {
+     sources += [
+       "webui_toolbar_web_view_util_mac.h",
+diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+index 4c5c285eac..4a61d1138b 100644
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -139,6 +139,9 @@
+ #include "components/strings/grit/components_strings.h"
+ #include "content/public/browser/render_view_host.h"
+ #include "content/public/browser/web_contents.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_navigation_button.h"
++#endif
+ #include "third_party/skia/include/core/SkPath.h"
+ #include "third_party/skia/include/core/SkPathBuilder.h"
+ #include "ui/accessibility/ax_node_data.h"
+@@ -430,10 +433,15 @@ void ToolbarView::Init() {
+ 
+   // Always add children in order from left to right, for accessibility.
+   if (!features::IsWebUIBackForwardButtonEnabled()) {
+-    back_ = AddChildView(std::make_unique<BackForwardButton>(
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    using NavigationButton = PrismNavigationButton;
++#else
++    using NavigationButton = BackForwardButton;
++#endif
++    back_ = AddChildView(std::make_unique<NavigationButton>(
+         BackForwardButton::Direction::kBack,
+         base::BindRepeating(callback, browser_, IDC_BACK), browser_));
+-    forward_ = AddChildView(std::make_unique<BackForwardButton>(
++    forward_ = AddChildView(std::make_unique<NavigationButton>(
+         BackForwardButton::Direction::kForward,
+         base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
+   }

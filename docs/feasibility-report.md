@@ -376,6 +376,28 @@ window-manager/desktop and Windows icons remain **unverified**.
 
 ## Decisions and limitations
 
+### Custom native navigation controls — 2026-10-16
+
+`docs/design/custom-native-chrome.md` records the user's requirement for
+original Prism chrome components, including the navigation bar, buttons,
+icons, tabs, and interaction states. The existing palette and active-tab shape
+were only a visual foundation. Patch `0013-prism-navigation-button.patch`
+wires the first actual Prism-owned Views control on Linux/Windows: custom
+back/forward arrow paths and painted idle, hover, and pressed capsules over
+Chromium's preserved history actions, accessible labels, and focus behavior.
+
+The pinned Linux `chrome` target relinked with `-j1`; `gn gen` and `gn check`
+passed. `native_navigation_button_smoke.mjs` used X11 input to click Back and
+Forward through two local HTTP pages and sent Alt+Left; all passed. The
+ordinary-page/Prism WebUI, F12/DevTools, and native side-panel smoke tests
+passed after the final build. Reviewed dark, light, forced-contrast, and
+700 px captures are `docs/evidence/prism-navigation-*-linux-20261016.png`.
+Forced contrast uses the upstream flat background, while the new glyphs use
+the system icon color. The history context menu, touch behavior, Windows
+rendering, true backdrop blur, and the rest of the custom chrome remain
+**unverified**. Phase 0's Windows, actual Store update, and live OpenAI gates
+remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
