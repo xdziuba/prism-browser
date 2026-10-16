@@ -417,6 +417,33 @@ dark, forced-contrast, and in-flight Stop captures are
 The DevTools reload context menu, touch behavior, Windows rendering, and true
 translucency remain **unverified**.
 
+### Custom native New Tab control — 2026-10-16
+
+The next documented component decision in
+`docs/design/custom-native-chrome.md` puts an original plus glyph and a
+Prism-owned inset surface in the horizontal tab strip. Patch
+`0014-prism-new-tab-button.patch` changes two Chromium files to select
+`PrismNewTabButton` on Linux/Windows. It subclasses Chromium's `NewTabButton`
+so the existing callback, menu implementation, focus ring, accessibility
+name, tooltip, hit mask, and Linux middle-click flag remain wired. The custom
+surface is only painted for Prism's resolved frame colors; forced contrast
+and custom themes use Chromium's background. The experimental glass-frame
+service retains its transparent path.
+
+`gn gen` made 36,683 targets; `gn check` passed for the New Tab and horizontal
+strip targets. The final `autoninja -j1 -C out/PrismFeasibility chrome` build
+succeeded in 49.53 seconds with three local actions. The dedicated
+`native_new_tab_button_smoke.mjs` used a real X11 click at the browser-owned
+control and observed a second tab at `chrome://new-tab-page/`. The ordinary
+page and `chrome://prism-ai/` asset smoke, F12/DevTools smoke, and the
+idempotent 14-patch check passed after that build. Reviewed dark, light, and
+forced-contrast captures are
+`docs/evidence/prism-new-tab-*-linux-20261016.png`. A first visual capture
+showed an overly tall fill; centering it into a 25 px square corrected the
+geometry and was included in the final build and test. The context menu,
+Linux middle click, touch and Windows behavior remain **unverified**, as do
+the remaining custom tab and toolbar components and true backdrop blur.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

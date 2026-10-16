@@ -108,3 +108,38 @@ and loading-state captures are `docs/evidence/prism-reload-*-linux-20261016.png`
 The forced-color capture keeps the upstream flat background and accessible
 icon coloring. Windows, touch and the DevTools reload context menu remain
 **unverified**.
+
+## Tab-strip control: new tab
+
+The first tab-strip slice replaces the visible New Tab control with a
+`PrismNewTabButton` subclass of Chromium's `NewTabButton`. It owns an original
+plus glyph and an inset, rounded surface with a thin rim and distinct idle,
+hover, and pressed fills. The component keeps Chromium's 28 px layout, hit
+mask, focus ring, pressed callback, new-tab context menu, accessibility name,
+tooltip, and Linux middle-click behavior. It also preserves the existing
+transparent background when the experimental glass frame service is active.
+
+Select the class only in the ordinary horizontal tab strip on Linux and
+Windows. Guard the custom surface by Prism's resolved frame color so custom
+themes and forced colors retain Chromium's native painting; keep the original
+glyph color resolved by the tab-strip control. The upstream patch changes only
+`horizontal_tab_strip_region_view.cc` and `tabs/BUILD.gn`; the component source
+lives under `prism/ui/native/`. A native mouse click must create a new tab,
+and the existing F12, ordinary-page and Prism WebUI smoke tests must still
+pass. Context-menu, middle-click and Windows behavior remain separate gates
+until exercised. This is one component of the complete tab overhaul, not its
+completion.
+
+### Observed Linux result
+
+Patch `0014` selects `PrismNewTabButton` in the ordinary horizontal strip and
+builds its Prism-owned source with the existing tab control target. GN
+generation and header checks passed, and the pinned source-built Linux
+`chrome` target linked with one job. A real X11 click on the native plus
+control created a second browser tab. Ordinary-page/Prism WebUI and F12
+smokes passed after the final build; the patch checker found all 14 patches
+already applied. Reviewed dark, light, and forced-contrast screenshots are
+`docs/evidence/prism-new-tab-*-linux-20261016.png`. The forced-contrast
+capture shows the inherited flat background and system-colored icon. The
+context menu, Linux middle-click path, touch behavior, and Windows rendering
+are still **unverified**.

@@ -1,0 +1,69 @@
+diff --git a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
+index ba82864fa3..220a47cd4c 100644
+--- a/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.cc
+@@ -69,6 +69,10 @@
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/view_utils.h"
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_new_tab_button.h"
++#endif
++
+ #if BUILDFLAG(IS_MAC)
+ inline constexpr int kTabStripRegionInternalPaddingMac = 12;
+ #endif
+@@ -234,6 +238,12 @@ HorizontalTabStripRegionViewOld::HorizontalTabStripRegionViewOld(
+ 
+   if (ShouldShowNewTabButton(browser)) {
+     std::unique_ptr<TabStripControlButton> tab_strip_control_button =
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++        std::make_unique<PrismNewTabButton>(
++            base::BindRepeating(&TabStrip::NewTabButtonPressed,
++                                base::Unretained(tab_strip_)),
++            browser);
++#else
+         std::make_unique<NewTabButton>(
+             base::BindRepeating(&TabStrip::NewTabButtonPressed,
+                                 base::Unretained(tab_strip_)),
+@@ -241,6 +251,7 @@ HorizontalTabStripRegionViewOld::HorizontalTabStripRegionViewOld(
+                 ? vector_icons::kAddWeight500CustomIcon
+                 : vector_icons::kAddOldIcon,
+             Edge::kNone, Edge::kNone, browser);
++#endif
+ 
+     new_tab_button_ = AddChildView(std::move(tab_strip_control_button));
+ 
+diff --git a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs/BUILD.gn
+index 64aaf9181a..6b2b1298e3 100644
+--- a/chrome/browser/ui/views/tabs/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/BUILD.gn
+@@ -516,6 +516,13 @@ source_set("new_tab_button") {
+     "new_tab_button.h",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/native/prism_new_tab_button.cc",
++      "//prism/ui/native/prism_new_tab_button.h",
++    ]
++  }
++
+   deps = [
+     ":tab_strip",
+     ":tab_strip_button",
+@@ -528,6 +535,14 @@ source_set("new_tab_button") {
+     "//ui/base:features",
+     "//ui/views",
+   ]
++
++  if (is_linux || is_win) {
++    deps += [
++      "//cc/paint",
++      "//ui/color",
++      "//ui/gfx",
++    ]
++  }
+ }
+ 
+ source_set("test_support") {
