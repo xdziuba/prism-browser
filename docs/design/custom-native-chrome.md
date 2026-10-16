@@ -182,3 +182,31 @@ binary. Reviewed dark idle/hover, light multi-tab, and forced-contrast
 captures are `docs/evidence/prism-tab-close-*-linux-20261016.png`. The
 middle-click forwarding path, touch interactions, special tab layouts, and
 Windows behavior remain **unverified**.
+
+## Toolbar menu control
+
+Use a `PrismBrowserAppMenuButton` subclass for the ordinary Views toolbar on
+Linux/Windows. It provides an original three-stroke menu glyph and the shared
+Prism navigation surface while keeping Chromium's menu model, severity
+notifications, badges, accessibility, focus, keyboard access, labels,
+animation, and command tracking. When Chromium expands the menu into a
+status chip, leave its icon and background native so urgency colors remain
+clear. Only the compact menu control uses the Prism glyph and capsule.
+The surface painter already falls back to Chromium for forced colors and
+non-Prism themes. Select the subclass in `toolbar_view.cc` and compile it in
+the same toolbar target; both files are already in patch `0013`. Verify a
+real menu click, visual light/dark/forced-contrast states, and ordinary
+navigation/F12 after a Linux build. Menu behavior in special windows,
+severity chips, touch, and Windows remains unverified until exercised.
+
+### Observed Linux result
+
+The Prism three-stroke glyph and inset capsule appear on the compact menu
+control in dark and light ordinary windows. Forced contrast retains Chromium's
+flat surface and uses its resolved foreground color. The source-built browser
+opened the native app menu from a real X11 click, closed it with Escape, and
+navigated to `chrome://settings/` from its Settings item. Patch `0013` remains
+limited to the existing toolbar construction and build files. The menu rows
+themselves still use Chromium's styling and product strings; their redesign
+is a separate slice. Expanded severity chips, touch, and Windows rendering
+remain unverified.

@@ -471,6 +471,29 @@ Reviewed dark idle/hover, light multi-tab, and forced-contrast captures are
 forwarding, touch, pinned/grouped/split/vertical tab behavior, Windows,
 and real backdrop blur remain **unverified**.
 
+### Custom native app-menu control — 2026-10-16
+
+The next design decision in `docs/design/custom-native-chrome.md` adds a
+Prism-owned compact menu glyph and the shared inset toolbar surface while
+retaining Chromium's `BrowserAppMenuButton` menu model, status updates,
+keyboard behavior, accessibility, and command dispatch. Updated patch `0013`
+only selects the subclass and adds its sources to the existing toolbar target
+on Linux/Windows. Expanded status chips keep their upstream appearance.
+
+`gn gen` produced 36,683 targets; `gn check` passed for `toolbar:impl`; and
+`autoninja -j1 -C out/PrismFeasibility chrome` passed in 59.41 seconds with
+three local actions. `native_app_menu_button_smoke.mjs` clicked the actual
+X11 menu button, measured 203,814 changed pixels in the menu region, closed
+it with Escape (zero changed pixels from baseline), reopened it, and selected
+Settings, which navigated to `chrome://settings/`. Ordinary-page and Prism
+WebUI smoke plus F12/DevTools passed on the same binary. Reviewed dark,
+light, forced-contrast, and open-menu captures are
+`docs/evidence/prism-app-menu-*-linux-20261016.png`. The forced-contrast
+surface falls back to Chromium's flat background. The menu rows and product
+strings still use Chromium's design. Expanded severity chips, touch,
+Windows, and real backdrop blur remain **unverified**; the Phase 0 gates
+remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
