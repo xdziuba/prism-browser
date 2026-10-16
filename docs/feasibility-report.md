@@ -494,6 +494,29 @@ strings still use Chromium's design. Expanded severity chips, touch,
 Windows, and real backdrop blur remain **unverified**; the Phase 0 gates
 remain open.
 
+### Custom native profile control — 2026-10-16
+
+`docs/design/custom-native-chrome.md` records the compact profile-button
+decision. A `PrismAvatarToolbarButton` subclass adds the shared inset Prism
+surface in ordinary Linux/Windows toolbars. Chromium continues to supply
+the avatar image, profile/sign-in state, labels, accessibility, menu callback,
+and focus behavior. Updated patch `0013` only changes the existing toolbar
+source list and construction point.
+
+`gn gen` made 36,683 targets, `gn check` passed for `toolbar:impl`, and
+`autoninja -j1 -C out/PrismFeasibility chrome` passed in 58.56 seconds with
+three local actions. `native_avatar_button_smoke.mjs` clicked the real X11
+profile button, measured 91,978 changed pixels in the bubble region, and
+closed the bubble with Escape (zero changed pixels from baseline). Ordinary
+page/Prism WebUI, F12/DevTools, and the previous native app-menu smokes passed
+on that binary. The patch checker, JavaScript syntax, Chromium-style
+formatting, and diff checks passed. Reviewed dark, light, forced-contrast,
+and open-bubble captures are
+`docs/evidence/prism-avatar-*-linux-20261016.png`. Profile menu contents
+and product strings still use Chromium's styling and names. Signed-in,
+guest, multiple-profile, expanded-chip, touch, Windows, and true backdrop
+blur behavior remain **unverified**; Phase 0 gates stay open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

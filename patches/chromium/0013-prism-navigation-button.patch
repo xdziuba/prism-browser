@@ -1,13 +1,15 @@
 diff --git a/chrome/browser/ui/views/toolbar/BUILD.gn b/chrome/browser/ui/views/toolbar/BUILD.gn
-index 4217e001e0..a58e40367e 100644
+index 4217e001e0..f25316a0ad 100644
 --- a/chrome/browser/ui/views/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/views/toolbar/BUILD.gn
-@@ -218,6 +218,19 @@ source_set("impl") {
+@@ -218,6 +218,21 @@ source_set("impl") {
      "webui_toolbar_web_view.cc",
    ]
  
 +  if (is_linux || is_win) {
 +    sources += [
++      "//prism/ui/native/prism_avatar_toolbar_button.cc",
++      "//prism/ui/native/prism_avatar_toolbar_button.h",
 +      "//prism/ui/native/prism_browser_app_menu_button.cc",
 +      "//prism/ui/native/prism_browser_app_menu_button.h",
 +      "//prism/ui/native/prism_navigation_button.cc",
@@ -23,14 +25,15 @@ index 4217e001e0..a58e40367e 100644
      sources += [
        "webui_toolbar_web_view_util_mac.h",
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index 4c5c285eac..47f26ea9ea 100644
+index 4c5c285eac..90c0d82341 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -139,6 +139,11 @@
+@@ -139,6 +139,12 @@
  #include "components/strings/grit/components_strings.h"
  #include "content/public/browser/render_view_host.h"
  #include "content/public/browser/web_contents.h"
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_avatar_toolbar_button.h"
 +#include "prism/ui/native/prism_browser_app_menu_button.h"
 +#include "prism/ui/native/prism_navigation_button.h"
 +#include "prism/ui/native/prism_reload_button.h"
@@ -38,7 +41,7 @@ index 4c5c285eac..47f26ea9ea 100644
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "ui/accessibility/ax_node_data.h"
-@@ -430,10 +435,15 @@ void ToolbarView::Init() {
+@@ -430,10 +436,15 @@ void ToolbarView::Init() {
  
    // Always add children in order from left to right, for accessibility.
    if (!features::IsWebUIBackForwardButtonEnabled()) {
@@ -56,7 +59,7 @@ index 4c5c285eac..47f26ea9ea 100644
          BackForwardButton::Direction::kForward,
          base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
    }
-@@ -452,7 +462,12 @@ void ToolbarView::Init() {
+@@ -452,7 +463,12 @@ void ToolbarView::Init() {
    if (!features::IsWebUIReloadButtonEnabled() ||
        base::FeatureList::IsEnabled(
            features::kWebUIToolbarProcessOverheadExperiment)) {
@@ -70,7 +73,21 @@ index 4c5c285eac..47f26ea9ea 100644
          browser_->GetProfile(),
          chrome::BrowserCommandController::From(browser_),
          InitialWebUIWindowMetricsManager::From(browser_)));
-@@ -627,7 +642,12 @@ void ToolbarView::Init() {
+@@ -610,7 +626,12 @@ void ToolbarView::Init() {
+   }
+ 
+   if (!features::IsWebUIAvatarButtonEnabled()) {
+-    avatar_ = AddChildView(std::make_unique<AvatarToolbarButton>(browser_));
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    using AvatarButtonClass = PrismAvatarToolbarButton;
++#else
++    using AvatarButtonClass = AvatarToolbarButton;
++#endif
++    avatar_ = AddChildView(std::make_unique<AvatarButtonClass>(browser_));
+     bool show_avatar_toolbar_button =
+         AvatarToolbarButtonInterface::CanShowForProfile(browser_->GetProfile());
+     avatar_->SetVisible(show_avatar_toolbar_button);
+@@ -627,7 +648,12 @@ void ToolbarView::Init() {
    // WebUI app menu button handles these internally, so no need to set these
    // properties here, and the control is added as part of the WebUI toolbar.
    if (!features::IsWebUIAppMenuButtonEnabled()) {

@@ -210,3 +210,27 @@ limited to the existing toolbar construction and build files. The menu rows
 themselves still use Chromium's styling and product strings; their redesign
 is a separate slice. Expanded severity chips, touch, and Windows rendering
 remain unverified.
+
+## Profile control
+
+Use a `PrismAvatarToolbarButton` subclass for the ordinary Linux/Windows
+toolbar. Keep Chromium's profile image, avatar ring, sign-in and guest states,
+profile switcher, menu callbacks, labels, accessibility, and focus behavior.
+Only the compact button gets Prism's shared inset surface; an expanded
+identity or warning chip remains native so its text and status colors are
+clear. The shared painter already declines non-Prism and forced-contrast
+palettes. Select it in the existing toolbar construction point and add the
+Prism-owned source to the toolbar target, keeping the patch surface in `0013`.
+Verify an actual profile-button click and menu dismissal on Linux, plus
+dark/light/forced visual captures, ordinary navigation and F12. Signed-in,
+guest, multiple-profile, touch and Windows cases remain unverified.
+
+### Observed Linux result
+
+The compact profile control has the Prism inset surface in dark and light
+ordinary windows; the avatar image and its foreground remain controlled by
+Chromium. Forced contrast retains the flat native surface. A real X11 click
+opened the profile bubble and Escape dismissed it, with the browser's page
+unchanged. The bubble still uses Chromium's design and product strings.
+Signed-in, guest, multiple-profile, expanded chip, touch, and Windows
+behavior remain unverified.
