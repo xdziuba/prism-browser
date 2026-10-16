@@ -444,6 +444,33 @@ geometry and was included in the final build and test. The context menu,
 Linux middle click, touch and Windows behavior remain **unverified**, as do
 the remaining custom tab and toolbar components and true backdrop blur.
 
+### Custom native tab close affordance — 2026-10-16
+
+The documented next slice in `docs/design/custom-native-chrome.md` adds an
+original Prism cross and a restrained hover/press surface for ordinary
+Linux/Windows tabs. Patch `0015-prism-tab-close-button.patch` changes three
+Chromium files: it makes `TabCloseButton::UpdateIcon()` virtual so selected
+and inactive tab color updates retain the Prism icon, selects the subclass
+for normal browser windows, and compiles the Prism-owned source in
+`tabs:tab_impl`. Chromium still owns close callbacks, the enlarged hit target,
+middle-click forwarding, gesture handling, focus ring, and accessible name.
+The new surface is guarded by Prism frame colors; forced contrast keeps the
+native background and uses the resolved icon foreground color.
+
+`gn gen` made 36,683 targets and `gn check` passed for `tabs:tab_impl`.
+The first compilation failed on a missing Views class metadata declaration
+in the new subclass; that was added. The full incremental build then passed,
+and the final ordinary-window guard relink succeeded with `autoninja -j1`
+in 34.23 seconds (two local actions). On that final binary,
+`native_tab_close_button_smoke.mjs` clicked the first close control in a
+two-tab browser and verified that the second tab stayed open. The native New
+Tab smoke, ordinary-page/Prism WebUI, F12/DevTools, idempotent 15-patch
+check, script syntax checks, and Chromium-style formatting checks passed.
+Reviewed dark idle/hover, light multi-tab, and forced-contrast captures are
+`docs/evidence/prism-tab-close-*-linux-20261016.png`. Middle-click
+forwarding, touch, pinned/grouped/split/vertical tab behavior, Windows,
+and real backdrop blur remain **unverified**.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

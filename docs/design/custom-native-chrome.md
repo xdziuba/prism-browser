@@ -143,3 +143,42 @@ already applied. Reviewed dark, light, and forced-contrast screenshots are
 capture shows the inherited flat background and system-colored icon. The
 context menu, Linux middle-click path, touch behavior, and Windows rendering
 are still **unverified**.
+
+## Tab close affordance
+
+Add a Prism-owned `PrismTabCloseButton` subclass for the ordinary Linux and
+Windows tab strip. It retains Chromium's press callback, enlarged hit target,
+middle-click forwarding, touch handling, close confirmation behavior, focus
+ring and accessible name. The subclass supplies an original thin-stroke cross
+and a restrained rounded hover/press surface that is clipped inside the
+existing close button bounds. The idle state remains visually quiet. Read
+foreground color from `TabCloseButton::GetColors()` to retain selected,
+inactive and forced-contrast legibility; only paint the custom hover surface
+when the resolved frame has a Prism token. Keep Chromium's native background
+for other themes and the platform high-contrast palette.
+
+The current `TabCloseButton::UpdateIcon()` is nonvirtual while `SetColors()`
+calls it whenever tab state changes. Make that one existing method virtual,
+then override it in the Prism subclass; otherwise an active-tab transition
+would silently restore Chromium's icon. Select the subclass in `tab.cc` and
+compile its source in the existing `tabs:tab_impl` target on Linux/Windows.
+This is a bounded three-file upstream patch plus Prism-owned source. Verify a
+real native close click with two tabs, ordinary navigation, F12, and forced
+contrast before claiming the component works. Pinned, grouped, split, touch,
+and Windows cases remain unverified until exercised.
+
+### Observed Linux result
+
+Patch `0015` introduces the narrow virtual icon update hook, selects the
+Prism subclass only for ordinary Linux/Windows browser tabs, and compiles
+the Prism-owned source with `tabs:tab_impl`. GN generation and header checks
+passed. The first compile identified a missing Views metadata declaration;
+after adding it, the source-built Linux browser linked successfully. A final
+single-job incremental relink also passed after the ordinary-window guard.
+The native X11 smoke clicked the first close control with two tabs open and
+confirmed that only the second tab remained. The previous native New Tab
+test, ordinary-page/Prism WebUI, F12, and patch checks passed on the final
+binary. Reviewed dark idle/hover, light multi-tab, and forced-contrast
+captures are `docs/evidence/prism-tab-close-*-linux-20261016.png`. The
+middle-click forwarding path, touch interactions, special tab layouts, and
+Windows behavior remain **unverified**.

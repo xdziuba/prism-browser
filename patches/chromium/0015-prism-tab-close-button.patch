@@ -1,0 +1,90 @@
+diff --git a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs/BUILD.gn
+index 6b2b1298e3..5d5e015a10 100644
+--- a/chrome/browser/ui/views/tabs/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/BUILD.gn
+@@ -264,6 +264,13 @@ source_set("tab") {
+ source_set("tab_impl") {
+   sources = [ "tab.cc" ]
+ 
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/native/prism_tab_close_button.cc",
++      "//prism/ui/native/prism_tab_close_button.h",
++    ]
++  }
++
+   deps = [
+     ":base",
+     ":tab",
+@@ -308,6 +315,10 @@ source_set("tab_impl") {
+     "//ui/views",
+   ]
+ 
++  if (is_linux || is_win) {
++    deps += [ "//ui/color" ]
++  }
++
+   if (is_chromeos) {
+     deps += [ "//chrome/browser/ash/boca/on_task" ]
+   }
+diff --git a/chrome/browser/ui/views/tabs/tab.cc b/chrome/browser/ui/views/tabs/tab.cc
+index 7a77fc7f0b..4868cd79a1 100644
+--- a/chrome/browser/ui/views/tabs/tab.cc
++++ b/chrome/browser/ui/views/tabs/tab.cc
+@@ -92,6 +92,10 @@
+ #include "ui/views/widget/tooltip_manager.h"
+ #include "ui/views/widget/widget.h"
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_tab_close_button.h"
++#endif
++
+ #if BUILDFLAG(IS_WIN)
+ #include "ui/views/win/pen_event_handler_util.h"
+ #endif
+@@ -392,10 +396,28 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
+ 
+   // Unretained is safe here because this class outlives its close button, and
+   // the controller outlives this Tab.
+-  close_button_ = AddChildView(std::make_unique<TabCloseButton>(
+-      base::BindRepeating(&Tab::CloseButtonPressed, base::Unretained(this)),
+-      base::BindRepeating(&TabSlotController::OnMouseEventInTab,
+-                          base::Unretained(controller_))));
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const bool use_prism_close_button =
++      browser_window_interface &&
++      browser_window_interface->GetType() ==
++          BrowserWindowInterface::Type::TYPE_NORMAL;
++#endif
++  auto close_callback =
++      base::BindRepeating(&Tab::CloseButtonPressed, base::Unretained(this));
++  auto mouse_callback = base::BindRepeating(
++      &TabSlotController::OnMouseEventInTab, base::Unretained(controller_));
++  std::unique_ptr<TabCloseButton> close_button;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (use_prism_close_button) {
++    close_button = std::make_unique<PrismTabCloseButton>(
++        std::move(close_callback), std::move(mouse_callback));
++  }
++#endif
++  if (!close_button) {
++    close_button = std::make_unique<TabCloseButton>(
++        std::move(close_callback), std::move(mouse_callback));
++  }
++  close_button_ = AddChildView(std::move(close_button));
+ 
+   // This will cause calls to GetContentsBounds to return only the rectangle
+   // inside the tab shape, rather than to its extents.
+diff --git a/chrome/browser/ui/views/tabs/tab/tab_close_button.h b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+index 957cc621a6..6353cff72e 100644
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
+@@ -52,7 +52,7 @@ class TabCloseButton : public views::LabelButton,
+ 
+  protected:
+   // Set/reset the image models for the icon with new colors.
+-  void UpdateIcon();
++  virtual void UpdateIcon();
+ 
+   // views::LabelButton:
+   gfx::Size CalculatePreferredSize(
