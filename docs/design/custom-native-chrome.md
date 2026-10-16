@@ -76,3 +76,35 @@ palette, no pill painting in forced contrast, and no navigation overflow at
 the system's icon color. The history context menu, touch behavior, Windows
 rendering, compositor blur, and complete toolbar/tab replacement remain
 **unverified**.
+
+## Next component: reload and stop
+
+Reuse the same Prism capsule painter for the reload/stop control to keep the
+navigation group coherent. Add `PrismReloadButton` over Chromium's existing
+`ReloadButton`; retain command dispatch, double-click/stop timing, DevTools
+reload menu, accessibility and presentation metrics. Give both visible modes
+original Prism vector glyphs and switch them using the existing mode-change
+callback. Let Chromium keep its short reload-to-stop transition and focus
+ring. Keep the same Prism-palette guard for the custom capsule; system and
+forced-contrast backgrounds remain native. The upstream delta remains the
+two already-touched toolbar files, and the same Linux/Windows guard.
+
+Verify actual native reload click, stop during a slow local response, mode
+icon changes, ordinary navigation, F12 and forced-contrast appearance before
+claiming the component works. A context menu with DevTools attached and
+Windows/touch rendering are separate gates.
+
+### Observed Linux result
+
+The shared `PrismNavigationSurface` paints all three controls while
+`PrismReloadButton` selects original reload/stop vectors through Chromium's
+mode-change callback. The source-built Linux `chrome` target linked with one
+job; `gn gen`, `gn check`, and the patch applicability checker passed.
+`native_reload_button_smoke.mjs` used a local HTTP counter to prove native
+reload and an eight-second delayed response to prove Stop cancels loading.
+The previously passing back/forward, ordinary-page/Prism WebUI, F12, and
+side-panel smokes passed after the final build. Reviewed dark, forced-contrast,
+and loading-state captures are `docs/evidence/prism-reload-*-linux-20261016.png`.
+The forced-color capture keeps the upstream flat background and accessible
+icon coloring. Windows, touch and the DevTools reload context menu remain
+**unverified**.

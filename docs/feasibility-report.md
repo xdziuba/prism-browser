@@ -398,6 +398,25 @@ rendering, true backdrop blur, and the rest of the custom chrome remain
 **unverified**. Phase 0's Windows, actual Store update, and live OpenAI gates
 remain open.
 
+### Custom native reload and stop — 2026-10-16
+
+The next decision in `docs/design/custom-native-chrome.md` extends the
+Prism-owned navigation family to Reload/Stop. The original icon paths and
+shared capsule painter live in `prism/ui/native/`; the existing Chromium
+`ReloadButton` still controls loading, double-click timing, DevTools menu,
+accessibility and metrics. Updated patch `0013` selects the component on
+Linux/Windows and adds its Prism-owned sources to the toolbar target.
+
+`gn gen`, `gn check`, patch applicability, and the pinned Linux `chrome`
+single-job build passed. `native_reload_button_smoke.mjs` passed a real X11
+reload click on a local HTTP page and a Stop click that canceled an eight
+second delayed navigation. The back/forward and Alt+Left smoke, ordinary
+page/Prism WebUI, F12, and side-panel smokes passed after the build. Reviewed
+dark, forced-contrast, and in-flight Stop captures are
+`docs/evidence/prism-reload-*-linux-20261016.png`.
+The DevTools reload context menu, touch behavior, Windows rendering, and true
+translucency remain **unverified**.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
