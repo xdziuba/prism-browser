@@ -517,6 +517,28 @@ and product strings still use Chromium's styling and names. Signed-in,
 guest, multiple-profile, expanded-chip, touch, Windows, and true backdrop
 blur behavior remain **unverified**; Phase 0 gates stay open.
 
+### Custom optional Home control — 2026-10-16
+
+The documented Home decision in `docs/design/custom-native-chrome.md` adds
+`PrismHomeButton` with an original vector outline and shared inset toolbar
+surface. The subclass preserves Chromium's command callback, menu,
+middle-click trigger, drag-to-set-home path, undo bubble, tooltip, focus,
+and accessible name. Updated patch `0013` only adds sources and selects the
+control when the user enables Home in the ordinary Linux/Windows toolbar.
+
+`gn gen` made 36,683 targets, `gn check` passed for `toolbar:impl`, and
+`autoninja -j1 -C out/PrismFeasibility chrome` passed in 55.97 seconds with
+three local actions. The first Home smoke run stopped on a test callback
+mistake (`URL` object treated as a string); fixing the test, without a browser
+source change, produced a pass: a real X11 click in a temporary profile
+with Home enabled navigated to `chrome://new-tab-page/`. Ordinary-page,
+Prism WebUI, and F12/DevTools smokes passed on that binary. Reviewed dark,
+light, and forced-contrast captures are
+`docs/evidence/prism-home-*-linux-20261016.png`. The forced-contrast button
+uses Chromium's flat surface. Middle-click, drag-to-set-home, custom Home
+URLs, touch, Windows, and true backdrop blur remain **unverified**; Phase 0
+gates stay open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

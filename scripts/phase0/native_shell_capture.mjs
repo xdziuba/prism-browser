@@ -21,7 +21,10 @@ try {
   await mkdir(join(profile, 'Default'));
   await writeFile(join(profile, 'Default', 'Preferences'), JSON.stringify({
     extensions: { theme: { system_theme: 0 } },
-    browser: { theme: { color_scheme2: mode === 'dark' ? 2 : 1 } },
+    browser: {
+      theme: { color_scheme2: mode === 'dark' ? 2 : 1 },
+      ...(process.env.PRISM_NATIVE_HOME === '1' ? { show_home_button: true } : {}),
+    },
   }));
 
   browser = await chromium.launchPersistentContext(profile, {

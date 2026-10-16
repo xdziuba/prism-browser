@@ -234,3 +234,24 @@ opened the profile bubble and Escape dismissed it, with the browser's page
 unchanged. The bubble still uses Chromium's design and product strings.
 Signed-in, guest, multiple-profile, expanded chip, touch, and Windows
 behavior remain unverified.
+
+## Optional Home control
+
+When the user enables Home in toolbar settings, construct a
+`PrismHomeButton` subclass with an original roof-and-door outline and the
+same inset Prism surface used by navigation. Keep Chromium's home command,
+middle-click, drag-to-set-home, undo bubble, context menu, accessible name,
+tooltip and focus handling. Use the existing toolbar target and construction
+patch `0013`; leave other platforms and WebUI-toolbar modes untouched.
+Verify a real click on a temporary profile with Home enabled, plus visual
+dark/light/forced states and ordinary page/DevTools smoke. Middle-click,
+drag-and-drop, touch, custom home URLs, and Windows stay unverified.
+
+### Observed Linux result
+
+The optional Home control shows the Prism roof-and-door glyph and inset
+surface when enabled in a temporary profile. A real X11 click navigated an
+ordinary tab to `chrome://new-tab-page/`. Light and dark captures retain
+the toolbar's control language; forced contrast falls back to a flat native
+button with a legible icon. Middle-click, drag-to-set-home, custom home URL,
+touch, and Windows behavior remain unverified.
