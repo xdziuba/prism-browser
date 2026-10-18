@@ -255,3 +255,22 @@ ordinary tab to `chrome://new-tab-page/`. Light and dark captures retain
 the toolbar's control language; forced contrast falls back to a flat native
 button with a legible icon. Middle-click, drag-to-set-home, custom home URL,
 touch, and Windows behavior remain unverified.
+
+## Bookmark page action
+
+The omnibox bookmark star is a visible page action, and its controller already
+chooses separate vector icons for unsaved and saved pages. Keep that controller
+and the PageActionView command, bubble, tooltip, accessible name, accent-color
+selection, and visibility logic intact. Supply original Prism outline and
+filled 20-unit star paths from `prism/ui/native/`; change only the icon
+selection in `bookmark_page_action_controller.cc` on Linux/Windows
+builds. Declare the Prism header in the existing bookmarks GN target. The
+view's foreground/accent colors continue to resolve from Chromium, including
+forced contrast. Test actual click on a local page, persisted bookmark URL,
+and dark/light/forced visuals. Bookmark editing, drag, animation, and Windows
+remain unverified until exercised.
+
+The Linux build, native click and persistence smoke, and dark/light/forced
+captures passed. The saved state uses the filled icon and retains Chromium's
+bookmark bubble. The outline state is visible in all three captures; its
+interaction and color fallback remain Chromium-owned.

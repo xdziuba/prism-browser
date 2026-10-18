@@ -1,0 +1,65 @@
+diff --git a/chrome/browser/ui/views/bookmarks/BUILD.gn b/chrome/browser/ui/views/bookmarks/BUILD.gn
+index 46e78c741e..b079578a0e 100644
+--- a/chrome/browser/ui/views/bookmarks/BUILD.gn
++++ b/chrome/browser/ui/views/bookmarks/BUILD.gn
+@@ -83,6 +83,10 @@ source_set("impl") {
+     "bookmark_page_action_controller.cc",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [ "//prism/ui/native/prism_bookmark_icons.h" ]
++  }
++
+   if (enable_dice_support) {
+     sources += [ "bookmark_sign_in_promo_bubble_view.cc" ]
+   }
+diff --git a/chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.cc b/chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.cc
+index ffe4536ee1..979a75fa72 100644
+--- a/chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.cc
++++ b/chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.cc
+@@ -6,6 +6,7 @@
+ 
+ #include "base/functional/bind.h"
+ #include "base/metrics/histogram_macros.h"
++#include "build/build_config.h"
+ #include "chrome/browser/defaults.h"
+ #include "chrome/browser/ui/actions/chrome_action_id.h"
+ #include "chrome/browser/ui/bookmarks/bookmark_stats.h"
+@@ -20,6 +21,9 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "components/bookmarks/common/bookmark_pref_names.h"
+ #include "components/omnibox/browser/vector_icons.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_bookmark_icons.h"
++#endif
+ #include "components/prefs/pref_service.h"
+ #include "components/strings/grit/components_strings.h"
+ #include "components/tabs/public/tab_interface.h"
+@@ -141,15 +145,19 @@ void BookmarkPageActionController::SetStarred(bool starred) {
+   page_action_controller_->OverrideAccessibleName(kActionBookmarkThisTab, name);
+   page_action_controller_->OverrideTooltip(kActionBookmarkThisTab, name);
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const gfx::VectorIcon& icon =
++      starred ? prism::kBookmarkFilledIcon : prism::kBookmarkOutlineIcon;
++#else
++  const gfx::VectorIcon& icon =
++      starred ? features::IsRoundedIconsEnabled()
++                    ? omnibox::kStarFilledIcon
++                    : omnibox::kStarActiveChromeRefreshOldIcon
++      : features::IsRoundedIconsEnabled() ? omnibox::kStarIcon
++                                          : omnibox::kStarChromeRefreshOldIcon;
++#endif
+   page_action_controller_->OverrideImage(
+-      kActionBookmarkThisTab,
+-      ui::ImageModel::FromVectorIcon(
+-          starred ? features::IsRoundedIconsEnabled()
+-                        ? omnibox::kStarFilledIcon
+-                        : omnibox::kStarActiveChromeRefreshOldIcon
+-          : features::IsRoundedIconsEnabled()
+-              ? omnibox::kStarIcon
+-              : omnibox::kStarChromeRefreshOldIcon),
++      kActionBookmarkThisTab, ui::ImageModel::FromVectorIcon(icon),
+       starred ? page_actions::PageActionColorSource::kCascadingAccent
+               : page_actions::PageActionColorSource::kForeground,
+       features::IsToolbarGlowUpEnabled()

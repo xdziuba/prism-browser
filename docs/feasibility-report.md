@@ -1,6 +1,6 @@
 # Phase 0 feasibility report
 
-Updated: 2026-10-14. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
+Updated: 2026-10-18. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
 
 ## Current environment
 
@@ -538,6 +538,34 @@ light, and forced-contrast captures are
 uses Chromium's flat surface. Middle-click, drag-to-set-home, custom Home
 URLs, touch, Windows, and true backdrop blur remain **unverified**; Phase 0
 gates stay open.
+
+### Custom bookmark page action — built 2026-10-16, checked 2026-10-18
+
+`docs/design/custom-native-chrome.md` records the original outline/filled
+Prism star choice. Patch `0016` changes only the icon selected by Chromium's
+bookmark page-action controller on Linux/Windows and declares its header in
+the existing bookmarks target. The page-action model, click command, bubble,
+tooltip, accessible name, color source, and visibility stay upstream-owned.
+
+`gn gen` completed with 36,683 targets; `gn check` passed for
+`//chrome/browser/ui/views/bookmarks:impl`; and single-job `chrome` build
+passed in 27.21 seconds with two local actions. On isolated X11 display
+`:101`, `native_bookmark_action_smoke.mjs` clicked the actual address-bar star
+and found the local URL in the temporary profile's Bookmarks file after exit.
+The test passed again on 2026-10-18. The reviewed saved-state screenshot is
+`docs/evidence/prism-bookmark-bubble-linux-20261016.png`; dark, light, and
+forced-contrast outline-state screenshots are
+`docs/evidence/prism-bookmark-{dark,light,forced}-linux-20261016.png`.
+The outline is visible in each mode and the filled icon is visible with the
+Chromium bookmark bubble. Ordinary-page, Prism WebUI, and F12/DevTools smokes
+passed on the same binary on 2026-10-18. All 16 patch files were detected as
+already applied; JavaScript syntax, Chromium-style C++ formatting, and diff
+checks passed.
+
+The bookmark bubble still uses Chromium styling. Removal/editing, persistence
+across a second browser launch, touch, animation, Windows appearance, and
+full native-chrome redesign remain **unverified**. The independent Phase 0
+gates remain open.
 
 ### Selected-tabs context preview — 2026-10-15
 
