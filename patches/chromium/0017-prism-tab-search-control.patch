@@ -1,0 +1,83 @@
+diff --git a/chrome/browser/ui/views/tabs/shared/BUILD.gn b/chrome/browser/ui/views/tabs/shared/BUILD.gn
+index 86836db53d..20c928d873 100644
+--- a/chrome/browser/ui/views/tabs/shared/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/shared/BUILD.gn
+@@ -34,6 +34,13 @@ source_set("impl") {
+     "tab_strip_flat_edge_button.cc",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/native/prism_tab_search_button.cc",
++      "//prism/ui/native/prism_tab_search_button.h",
++    ]
++  }
++
+   deps = [
+     ":shared",
+     "//base:i18n",
+@@ -72,6 +79,10 @@ source_set("impl") {
+     "//ui/views",
+   ]
+ 
++  if (is_linux || is_win) {
++    deps += [ "//chrome/browser/ui/views/frame:glass_frame_service" ]
++  }
++
+   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+ }
+ 
+diff --git a/chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.cc b/chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.cc
+index f448c7c94a..41a3cc52f3 100644
+--- a/chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.cc
++++ b/chrome/browser/ui/views/tabs/shared/tab_strip_combo_button.cc
+@@ -8,6 +8,7 @@
+ #include "base/metrics/user_metrics.h"
+ #include "base/metrics/user_metrics_action.h"
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "chrome/app/chrome_command_ids.h"
+ #include "chrome/app/vector_icons/vector_icons.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -45,6 +46,10 @@
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/view_utils.h"
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_tab_search_button.h"
++#endif
++
+ namespace {
+ constexpr base::TimeDelta kHideTabSearchButtonDelay = base::Seconds(2);
+ constexpr base::TimeDelta kAnimationDuration = base::Milliseconds(300);
+@@ -207,7 +212,16 @@ void TabStripComboButton::ShowEverythingMenu() {
+ 
+ std::unique_ptr<TabStripFlatEdgeButton>
+ TabStripComboButton::CreateFlatEdgeButtonFor(ui::ElementIdentifier element_id) {
+-  auto button = std::make_unique<TabStripFlatEdgeButton>();
++  std::unique_ptr<TabStripFlatEdgeButton> button;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (context_ == Context::kHorizontalTabStrip &&
++      element_id == kTabSearchButtonElementId) {
++    button = std::make_unique<PrismTabSearchButton>(browser_);
++  }
++#endif
++  if (!button) {
++    button = std::make_unique<TabStripFlatEdgeButton>();
++  }
+   button->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_CENTER);
+   button->SetShouldShowLabel(context_ == Context::kVerticalTabStrip);
+   button->SetExpansionOrientation(orientation_);
+diff --git a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h
+index c2271152f4..dd0ae70599 100644
+--- a/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h
++++ b/chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h
+@@ -39,7 +39,7 @@ class TabStripFlatEdgeButton : public views::LabelButton,
+   void SetFlatEdge(FlatEdge flat_edge);
+   void SetCornerRadius(float corner_radius);
+   void SetIconSize(int icon_size);
+-  void UpdateIcon(const ui::ImageModel& icon_image);
++  virtual void UpdateIcon(const ui::ImageModel& icon_image);
+   void SetInsets(const gfx::Insets& insets);
+   void SetIconOpacity(float opacity);
+   void SetPaintTransparent(bool paint_transparent);

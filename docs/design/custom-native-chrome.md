@@ -274,3 +274,29 @@ The Linux build, native click and persistence smoke, and dark/light/forced
 captures passed. The saved state uses the filled icon and retains Chromium's
 bookmark bubble. The outline state is visible in all three captures; its
 interaction and color fallback remain Chromium-owned.
+
+## Tab search control
+
+The leftmost horizontal tab-strip control currently uses a generic chevron.
+Use a Prism-owned `TabStripFlatEdgeButton` subclass with a compact original
+tabs-and-search vector and an inset frame surface. Retain Chromium's action
+relationship, tab-search bubble, tooltip, accessibility text, pin context
+menu, visibility animation, focus, and hit target. Keep vertical tab-strip
+combo controls on their existing implementation until that layout is redesigned
+as a whole. Make `UpdateIcon` virtual in the upstream base so action and theme
+updates keep the Prism vector; select the subclass only for the horizontal
+tab-search element. Paint the Prism surface only when the resolved frame colors
+match the Prism palette and the native glass service does not own that window;
+forced colors and other themes use the existing background and color IDs.
+
+Verify a real X11 click opens tab search, Escape closes it, and ordinary-page,
+WebUI and F12 behavior still pass. Inspect dark, light, forced contrast, and a
+narrow window. Pin-menu semantics, vertical tab strip, touch, Windows, and real
+backdrop blur require separate verification.
+
+The Linux result passed GN generation/check, the single-job browser build,
+native open/Escape smoke, and dark/light/forced/narrow captures. The control
+keeps a recognizable icon in forced contrast while its custom surface falls
+back to the platform color. The tab-search bubble still uses Chromium's
+presentation; pin-menu, keyboard focus traversal, vertical layout, touch,
+Windows, and compositor blur remain open.

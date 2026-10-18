@@ -567,6 +567,35 @@ across a second browser launch, touch, animation, Windows appearance, and
 full native-chrome redesign remain **unverified**. The independent Phase 0
 gates remain open.
 
+### Custom native tab-search control — 2026-10-18
+
+The design note in `docs/design/custom-native-chrome.md` selects a Prism-owned
+horizontal tab-search button with an original tabs-and-search glyph and inset
+frame surface. Patch `0017` adds the subclass to the existing shared tab-strip
+target, selects it only for the horizontal tab-search element on Linux/Windows,
+and makes the base icon-update method virtual. Chromium retains the action,
+bubble, pin context menu, visibility animation, label, accessibility, focus,
+and hit target. Vertical combo controls retain their upstream class.
+
+`gn gen` completed with 36,683 targets; `gn check` passed for
+`//chrome/browser/ui/views/tabs/shared:impl`. The first dependency check
+identified a missing direct dependency on the existing glass-frame service;
+the GN file was corrected before building. A preliminary build was stopped
+after its action count was inspected, with no compiler failure. The final
+`autoninja -j1 -C out/PrismFeasibility chrome` passed in 1m58s with eight
+local actions. `native_tab_search_button_smoke.mjs` clicked the actual X11
+control: opening changed 52,411 pixels in the bubble region, and Escape
+restored the baseline exactly. Ordinary-page and Prism WebUI smoke plus
+F12/DevTools passed on that binary. JavaScript syntax, Chromium-style C++
+formatting, diff checks, and the idempotent 17-patch check passed.
+
+Reviewed captures are `docs/evidence/prism-tab-search-{dark,light,forced,narrow,open}-linux-20261018.png`.
+The original icon is visible in dark/light/forced contrast and at 700 px; the
+custom surface falls back in forced contrast. The tab-search bubble remains
+Chromium-styled. Pin-menu behavior, keyboard focus traversal, vertical tab
+strip, touch, Windows, real backdrop blur, and complete native-chrome redesign
+remain **unverified**. Phase 0 gates remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
