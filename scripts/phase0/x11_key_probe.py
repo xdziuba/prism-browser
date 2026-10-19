@@ -27,6 +27,7 @@ class WindowAttributes(ctypes.Structure):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--preserve-focus", action="store_true")
     parser.add_argument("window_name")
     parser.add_argument("keys", nargs="+")
     args = parser.parse_args()
@@ -112,8 +113,9 @@ def main():
     window = search(x11.XDefaultRootWindow(display))
     if not window:
         raise RuntimeError(f"No window title contains {args.window_name!r}")
-    x11.XRaiseWindow(display, window)
-    x11.XSetInputFocus(display, window, 2, 0)
+    if not args.preserve_focus:
+        x11.XRaiseWindow(display, window)
+        x11.XSetInputFocus(display, window, 2, 0)
     x11.XSync(display, 0)
 
     def keycode(name):

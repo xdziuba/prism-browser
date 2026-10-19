@@ -596,6 +596,40 @@ Chromium-styled. Pin-menu behavior, keyboard focus traversal, vertical tab
 strip, touch, Windows, real backdrop blur, and complete native-chrome redesign
 remain **unverified**. Phase 0 gates remain open.
 
+### Native omnibox Clear all — 2026-10-18
+
+The decision in `docs/design/custom-native-chrome.md` extends the existing
+editable omnibox control without replacing its text editor or security/page
+actions. Chromium formerly displayed Clear all only when a virtual keyboard
+was visible. Patch `0018` shows the existing button for nonempty in-progress
+input in ordinary Linux/Windows desktop windows and selects a Prism-owned
+crossed-stroke vector for the non-touch state. Its callback, tooltip, color
+IDs, border insets, and touch icon remain Chromium-owned.
+
+`gn gen` made 36,683 targets; `gn check` passed for the location-bar target.
+The first single-job Linux browser build passed in 49.44s. A real X11 test
+revealed the virtual-keyboard-only visibility condition, so that test failed
+before the visibility change. After the correction, a second single-job build
+passed in 52.14s. An initially intermittent click test exposed a timing race:
+the AI page action appeared after the screenshot and shifted the clear button
+before the click. The test now lets that layout settle before locating the
+glyph. The clean final source was rebuilt on 2026-10-19 (`chrome -j1`, 55.34s,
+2 actions). `native_omnibox_clear_smoke.mjs` then passed in dark, light,
+forced contrast, and 700 px modes, plus a repeated dark run: X11 typed a probe
+into the address bar, clicked its visible Clear all control, and Enter left
+the original page unchanged. A source-formatting-only follow-up relink passed
+in 51.84s (2 actions); Clear all, ordinary-page/Prism WebUI, and F12 passed
+again on that exact binary. The captured pre-click images were reviewed at
+`docs/evidence/prism-omnibox-clear-{dark,light,forced,narrow}-linux-20261018.png`.
+The glyph is legible in all four and does not overflow at 700 px. The
+18-patch idempotence check, Python compile check, JavaScript syntax check,
+and `git diff --check` also passed.
+
+Keyboard focus traversal, touch behavior, RTL, screen-reader announcement,
+Windows rendering, real backdrop blur, and the complete navigation layout
+remain **unverified**. The Windows build, real Store version update, and live
+OpenAI API call remain independent Phase 0 gates.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

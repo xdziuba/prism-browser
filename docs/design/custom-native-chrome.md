@@ -300,3 +300,28 @@ keeps a recognizable icon in forced contrast while its custom surface falls
 back to the platform color. The tab-search bubble still uses Chromium's
 presentation; pin-menu, keyboard focus traversal, vertical layout, touch,
 Windows, and compositor blur remain open.
+
+## Omnibox clear control
+
+The editable omnibox and its trailing actions remain Chromium-owned. Upstream
+only exposes Clear all when the virtual keyboard is visible. In Prism's
+ordinary Linux/Windows desktop browser, expose it whenever there is in-progress
+nonempty input, using an original Prism crossed-stroke glyph in the existing
+image button. Keep Chromium's `SetUserText` callback, tooltip, layout insets,
+disabled color, keyboard focus,
+and touch-specific backspace icon. The glyph is a vector path in
+`prism/ui/native/`, selected only for the non-touch branch. This keeps the
+change to one existing refresh point and avoids disturbing security chips,
+editing, text direction, and page actions. The visual test should include a
+typed omnibox, click-to-clear, keyboard focus, narrow layout, and forced
+contrast; Windows and touch remain separately unverified until exercised.
+
+### Observed Linux result
+
+The source-built Linux browser now shows Clear all for nonempty in-progress
+input. A real X11 click on the Prism glyph cleared the typed text; pressing
+Enter afterward kept the original page. The same smoke passed in dark, light,
+forced contrast, and 700 px windows. The icon uses Chromium's resolved icon
+color in forced contrast and remains inside the omnibox at 700 px. Keyboard
+focus order, touch, RTL, Windows, and screen-reader announcement remain
+unverified for the larger navigation-layout slice.

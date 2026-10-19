@@ -1,0 +1,65 @@
+diff --git a/chrome/browser/ui/views/location_bar/BUILD.gn b/chrome/browser/ui/views/location_bar/BUILD.gn
+--- a/chrome/browser/ui/views/location_bar/BUILD.gn
++++ b/chrome/browser/ui/views/location_bar/BUILD.gn
+@@ -107,6 +107,10 @@
+       "zoom_bubble_manager_views.cc",
+       "zoom_bubble_view.cc",
+     ]
++
++    if (is_linux || is_win) {
++      sources += [ "//prism/ui/native/prism_omnibox_icons.h" ]
++    }
+ 
+     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+ 
+diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -121,6 +121,9 @@
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_observer.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_omnibox_icons.h"
++#endif
+ #include "services/device/public/cpp/device_features.h"
+ #include "third_party/metrics_proto/omnibox_event.pb.h"
+ #include "third_party/skia/include/core/SkColor.h"
+@@ -1575,12 +1578,19 @@
+ 
+ void LocationBarView::RefreshClearAllButtonIcon() {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const gfx::VectorIcon& icon = touch_ui ? (features::IsRoundedIconsEnabled()
++                                                ? omnibox::kBackspaceFilledIcon
++                                                : omnibox::kClearOldIcon)
++                                         : prism::kOmniboxClearIcon;
++#else
+   const gfx::VectorIcon& icon = touch_ui ? features::IsRoundedIconsEnabled()
+                                                ? omnibox::kBackspaceFilledIcon
+                                                : omnibox::kClearOldIcon
+                                 : features::IsRoundedIconsEnabled()
+                                     ? kCloseIcon
+                                     : kTabCloseNormalOldIcon;
++#endif
+   SetImageFromVectorIconWithColor(
+       clear_all_button_, icon,
+       {kColorLocationBarClearAllButtonIcon,
+@@ -2075,11 +2085,16 @@
+ 
+   location_icon_view_->Update(
+       /*suppress_animations=*/false, GetOmniboxController()->IsPopupOpen());
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  constexpr bool kShowClearWithoutVirtualKeyboard = true;
++#else
++  constexpr bool kShowClearWithoutVirtualKeyboard = false;
++#endif
+   clear_all_button_->SetVisible(
+       omnibox_view_ &&
+       GetOmniboxController()->edit_model()->user_input_in_progress() &&
+       !omnibox_view_->GetText().empty() &&
+-      IsVirtualKeyboardVisible(GetWidget()));
++      (kShowClearWithoutVirtualKeyboard || IsVirtualKeyboardVisible(GetWidget())));
+ 
+   InvalidateLayout();
+   SchedulePaint();
