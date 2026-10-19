@@ -19,6 +19,10 @@ if (!existsSync(join(source, '.git'))) throw new Error('Use the full Chromium so
 const expected = JSON.parse(readFileSync(join(repository, 'chromium.lock.json'), 'utf8')).chromium_src;
 const actual = execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
 if (actual !== expected) throw new Error(`Chromium source is ${actual}, expected ${expected}`);
+const viewportWidth = Number(process.env.PRISM_PANEL_VIEWPORT_WIDTH ?? 1100);
+if (!Number.isInteger(viewportWidth) || viewportWidth < 600 || viewportWidth > 1600) {
+  throw new Error('PRISM_PANEL_VIEWPORT_WIDTH must be 600–1600');
+}
 
 const profile = mkdtempSync(join(tmpdir(), 'prism-panel-smoke-'));
 const browserEnv = {
@@ -94,7 +98,7 @@ try {
     executablePath: binary, headless: false,
     args: ['--ozone-platform=x11', '--no-first-run', '--force-device-scale-factor=1',
       '--remote-debugging-port=0'],
-    env: browserEnv, viewport: {width: 1100, height: 820},
+    env: browserEnv, viewport: {width: viewportWidth, height: 820},
   });
   const page = context.pages()[0] ?? await context.newPage();
   await page.goto('chrome://version/');

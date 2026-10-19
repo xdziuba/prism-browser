@@ -794,6 +794,39 @@ screen-reader announcements, and non-Prism panel visual regression remain
 **unverified**. The independent Windows build, real Store version update,
 and live OpenAI API call remain Phase 0 gates.
 
+### Prism AI native header shell — 2026-10-19
+
+`docs/design/native-prism-ai-header-shell.md` defines a Prism-owned
+`SidePanelHeader` subclass for only the Prism AI entry. It paints an opaque
+dark/light material with a subtle top rim and bottom boundary around the
+existing title and original pin/close controls. Forced contrast and custom
+themes keep the inherited parent surface. The existing flex layout, native
+focus order, callback and panel lifecycle remain in Chromium. Patch `0003`
+now contains one guarded constructor selection in
+`side_panel_coordinator.cc` and two source entries in the side-panel GN target;
+`docs/upstream-patches.md` inventories both upstream files.
+
+`gn gen` made 36,683 targets, `gn check` passed for the side-panel target,
+and `autoninja -j1 -C out/PrismFeasibility chrome` succeeded in 23.40 seconds
+with two C++ compiles and one link. All 19 patch idempotence checks passed.
+On isolated X11 `:101`, native pin, close, restart, toolbar reopen, and unpin
+passed in dark, light, and forced contrast. Dark and forced runs also used
+Tab/Shift+Tab and Enter to close with a visible focus ring. Reviewed native
+captures are `docs/evidence/native-prism-ai-header-shell-{dark,light,forced,narrow}-linux-20261019.png`
+and the corresponding `hover`/`focus` dark and forced captures. A 700-pixel
+viewport kept the header title and controls inside the panel. The full-page
+WebUI behind the panel is clipped at that width, which remains a separate
+responsive-layout issue. The dark and light design-token text pairs calculate
+to 9.59:1 and 12.26:1 contrast, respectively. Ordinary-page/Prism WebUI,
+F12/DevTools, and native panel lifecycle/model-persistence/Incognito-exclusion
+smokes passed on the final Linux binary. JavaScript syntax and formatting
+checks passed.
+
+Windows rendering, non-Prism panel visual regression, touch, RTL, assistive
+announcements, and platform blur remain **unverified**. The independent
+Windows build, real Store version update, and live OpenAI API call remain
+Phase 0 gates.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

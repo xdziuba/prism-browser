@@ -76,15 +76,17 @@ index 534627028f..5494d9ac13 100644
    V(kSideSearch, kActionSidePanelShowSideSearch, "SideSearch")                \
    V(kLens, kActionSidePanelShowLens, "Lens")                                  \
 diff --git a/chrome/browser/ui/views/side_panel/BUILD.gn b/chrome/browser/ui/views/side_panel/BUILD.gn
-index 412d15f6ef..853bba0005 100644
+index 412d15f6ef..f8ad0bc107 100644
 --- a/chrome/browser/ui/views/side_panel/BUILD.gn
 +++ b/chrome/browser/ui/views/side_panel/BUILD.gn
-@@ -50,6 +50,15 @@ source_set("side_panel") {
+@@ -50,6 +50,17 @@ source_set("side_panel") {
      "side_panel_web_ui_view.cc",
      "side_panel_web_ui_view.h",
    ]
 +  if (is_linux || is_win) {
 +    sources += [
++      "//prism/ui/native/prism_side_panel_header.cc",
++      "//prism/ui/native/prism_side_panel_header.h",
 +      "//prism/ui/native/prism_side_panel_header_button.cc",
 +      "//prism/ui/native/prism_side_panel_header_button.h",
 +      "//prism/ui/native/prism_side_panel_header_icons.h",
@@ -95,7 +97,7 @@ index 412d15f6ef..853bba0005 100644
    public_deps = [
      "//base",
      "//chrome/browser:browser_public_dependencies",
-@@ -175,6 +184,10 @@ source_set("side_panel") {
+@@ -175,6 +186,10 @@ source_set("side_panel") {
      "//ui/webui",
    ]
  
@@ -106,6 +108,42 @@ index 412d15f6ef..853bba0005 100644
    if (enable_extensions_core) {
      public_deps += [
        "//extensions/browser",
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+index f65b51ef5e..13264f389b 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+@@ -40,6 +40,9 @@
+ #include "components/feature_engagement/public/feature_constants.h"
+ #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+ #include "ui/views/view.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_side_panel_header.h"
++#endif
+ 
+ DEFINE_USER_DATA(SidePanelCoordinator);
+ 
+@@ -275,9 +278,18 @@ void SidePanelCoordinator::PopulateSidePanel(
+   side_panel->UpdateHorizontalAlignment(entry->key().id());
+ 
+   if (entry->should_show_header()) {
+-    side_panel->AddHeaderView(std::make_unique<SidePanelHeader>(
+-        std::make_unique<SidePanelHeaderController>(
+-            &*browser_, side_panel_toolbar_pinning_controller_.get(), entry)));
++    auto controller = std::make_unique<SidePanelHeaderController>(
++        &*browser_, side_panel_toolbar_pinning_controller_.get(), entry);
++    std::unique_ptr<SidePanelHeader> header;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    if (entry->key().id() == SidePanelEntryId::kPrismAi) {
++      header = std::make_unique<PrismSidePanelHeader>(std::move(controller));
++    } else
++#endif
++    {
++      header = std::make_unique<SidePanelHeader>(std::move(controller));
++    }
++    side_panel->AddHeaderView(std::move(header));
+   } else {
+     side_panel->RemoveHeaderView();
+   }
 diff --git a/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc b/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc
 index d83ab21445..3abee3a892 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc
