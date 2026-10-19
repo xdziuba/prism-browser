@@ -74,11 +74,23 @@ try {
   await page.locator('#open-side-panel').click();
   await waitFor(() => panelTarget(profile), page, 'native Prism AI panel');
   await page.waitForTimeout(900);
+  if (process.env.PRISM_AI_HEADER_HOVER_SCREENSHOT) {
+    native('move:1227,106');
+    await page.waitForTimeout(300);
+    capture(process.env.PRISM_AI_HEADER_HOVER_SCREENSHOT);
+  }
   native('click:1227,106');
   native('move:800,500');
   await page.waitForTimeout(900);
   capture(screenshot);
-  native('click:1257,106');
+  if (process.env.PRISM_AI_HEADER_FOCUS_SCREENSHOT) {
+    native('Tab', 'ISO_Left_Tab');
+    await page.waitForTimeout(300);
+    capture(process.env.PRISM_AI_HEADER_FOCUS_SCREENSHOT);
+    native('Return');
+  } else {
+    native('click:1257,106');
+  }
   await waitFor(async () => !await panelTarget(profile), page, 'Prism AI panel to close');
   await browser.close();
   browser = undefined;

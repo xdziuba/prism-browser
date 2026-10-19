@@ -756,9 +756,43 @@ model-persistence, and Incognito-exclusion smoke passed on the final binary.
 JavaScript syntax, C++ formatting, and diff checks passed.
 
 Windows rendering, touch, narrow panel layout, RTL, assistive announcement,
-and a complete custom panel-header surface remain **unverified or future
+and a complete custom panel-header layout remain **unverified or future
 work**. The independent Windows build, real Store version update, and live
 OpenAI API call remain Phase 0 gates.
+
+### Prism AI native panel pin and close surfaces — 2026-10-19
+
+`docs/design/native-prism-ai-panel-controls.md` defines Prism-owned native
+button classes for only the Prism AI header pin and close controls. Their
+existing callbacks, tooltip/accessibility text, focus behavior, hit target,
+and pin state remain in Chromium's controller. The new
+`prism/ui/native/prism_side_panel_header_button.{h,cc}` paints opaque Prism
+dark/light rounded surfaces with immediate hover/press feedback; unknown
+palettes and forced contrast receive a transparent hover outline. The generic
+ink drop is disabled for these two controls so it cannot cover their glyphs.
+The guarded source entries and conditional construction extend patch `0003`.
+
+`gn gen` created 36,683 targets, `gn check` passed for the side-panel target,
+and `autoninja -j1 -C out/PrismFeasibility chrome` passed in 17.75 seconds
+with two C++ compiles and one link. Overlay sync and all 19 patch idempotence
+checks passed. On isolated X11 `:101`, real native pin, close, restart,
+toolbar reopen, and unpin clicks passed in dark, light, and forced contrast.
+Reviewed idle captures are
+`docs/evidence/native-prism-ai-controls-{dark,light,forced}-linux-20261019.png`;
+reviewed hover captures are
+`docs/evidence/native-prism-ai-controls-hover-{dark,forced}-linux-20261019.png`.
+Native Tab/Shift+Tab navigation focused the close button, and Enter closed
+the panel in dark and forced contrast; reviewed focus captures are
+`docs/evidence/native-prism-ai-controls-focus-{dark,forced}-linux-20261019.png`.
+The forced-contrast pin glyph remains visible on hover. Ordinary-page and
+Prism WebUI assets, F12/DevTools, and panel lifecycle/model-persistence/
+Incognito-exclusion smokes passed on the final binary. JavaScript syntax and
+diff checks passed.
+
+Windows rendering, touch, narrow layout, RTL,
+screen-reader announcements, and non-Prism panel visual regression remain
+**unverified**. The independent Windows build, real Store version update,
+and live OpenAI API call remain Phase 0 gates.
 
 ### Selected-tabs context preview — 2026-10-15
 
