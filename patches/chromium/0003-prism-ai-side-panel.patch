@@ -76,15 +76,16 @@ index 534627028f..5494d9ac13 100644
    V(kSideSearch, kActionSidePanelShowSideSearch, "SideSearch")                \
    V(kLens, kActionSidePanelShowLens, "Lens")                                  \
 diff --git a/chrome/browser/ui/views/side_panel/BUILD.gn b/chrome/browser/ui/views/side_panel/BUILD.gn
-index 412d15f6ef..ae9d079654 100644
+index 412d15f6ef..ec2239727d 100644
 --- a/chrome/browser/ui/views/side_panel/BUILD.gn
 +++ b/chrome/browser/ui/views/side_panel/BUILD.gn
-@@ -50,6 +50,12 @@ source_set("side_panel") {
+@@ -50,6 +50,13 @@ source_set("side_panel") {
      "side_panel_web_ui_view.cc",
      "side_panel_web_ui_view.h",
    ]
 +  if (is_linux || is_win) {
 +    sources += [
++      "//prism/ui/native/prism_side_panel_header_icons.h",
 +      "//prism/ui/side_panel/prism_side_panel.cc",
 +      "//prism/ui/side_panel/prism_side_panel.h",
 +    ]
@@ -92,7 +93,7 @@ index 412d15f6ef..ae9d079654 100644
    public_deps = [
      "//base",
      "//chrome/browser:browser_public_dependencies",
-@@ -175,6 +181,10 @@ source_set("side_panel") {
+@@ -175,6 +182,10 @@ source_set("side_panel") {
      "//ui/webui",
    ]
  
@@ -103,6 +104,79 @@ index 412d15f6ef..ae9d079654 100644
    if (enable_extensions_core) {
      public_deps += [
        "//extensions/browser",
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc b/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc
+index d83ab21445..a3f456684e 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_header_controller.cc
+@@ -51,6 +51,9 @@
+ #include "ui/views/style/typography.h"
+ #include "ui/views/vector_icons.h"
+ #include "ui/views/view_class_properties.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_side_panel_header_icons.h"
++#endif
+ 
+ namespace {
+ void ConfigureControlButton(views::ImageButton* button) {
+@@ -146,18 +149,28 @@ SidePanelHeaderController::CreatePinButton() {
+ 
+   int dip_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
+       ChromeDistanceMetric::DISTANCE_SIDE_PANEL_HEADER_VECTOR_ICON_SIZE);
+-  const gfx::VectorIcon& pin_icon =
+-      features::IsRoundedIconsEnabled() ? kKeepIcon : kKeepOldIcon;
++  const gfx::VectorIcon* pin_icon =
++      features::IsRoundedIconsEnabled() ? &kKeepIcon : &kKeepOldIcon;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (side_panel_entry_->key().id() == SidePanelEntryId::kPrismAi) {
++    pin_icon = &prism::kSidePanelPinIcon;
++  }
++#endif
+   views::SetImageFromVectorIconWithColor(
+-      button.get(), pin_icon,
++      button.get(), *pin_icon,
+       {kColorSidePanelHeaderButtonIcon,
+        kColorSidePanelHeaderButtonIconDisabled},
+       dip_size);
+ 
+-  const gfx::VectorIcon& unpin_icon =
+-      features::IsRoundedIconsEnabled() ? kKeepOffIcon : kKeepOffOldIcon;
++  const gfx::VectorIcon* unpin_icon =
++      features::IsRoundedIconsEnabled() ? &kKeepOffIcon : &kKeepOffOldIcon;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (side_panel_entry_->key().id() == SidePanelEntryId::kPrismAi) {
++    unpin_icon = &prism::kSidePanelUnpinIcon;
++  }
++#endif
+   views::SetToggledImageFromVectorIconWithColor(
+-      button.get(), unpin_icon, dip_size,
++      button.get(), *unpin_icon, dip_size,
+       {kColorSidePanelHeaderButtonIcon,
+        kColorSidePanelHeaderButtonIconDisabled});
+ 
+@@ -231,11 +244,18 @@ SidePanelHeaderController::CreateCloseButton() {
+   CHECK(!close_button_);
+   CHECK(side_panel_entry_);
+ 
+-  auto button = CreateImageButton(
+-      base::BindRepeating(&SidePanelHeaderController::Close,
+-                          base::Unretained(this)),
+-      features::IsRoundedIconsEnabled() ? views::kCloseIcon
+-                                        : views::kIcCloseOldIcon);
++  const gfx::VectorIcon* close_icon = features::IsRoundedIconsEnabled()
++                                          ? &views::kCloseIcon
++                                          : &views::kIcCloseOldIcon;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (side_panel_entry_->key().id() == SidePanelEntryId::kPrismAi) {
++    close_icon = &prism::kSidePanelCloseIcon;
++  }
++#endif
++  auto button =
++      CreateImageButton(base::BindRepeating(&SidePanelHeaderController::Close,
++                                            base::Unretained(this)),
++                        *close_icon);
+   button->SetTooltipText(
+       l10n_util::GetStringUTF16(IDS_ACCNAME_SIDE_PANEL_CLOSE));
+   button->SetProperty(views::kElementIdentifierKey,
 diff --git a/chrome/browser/ui/views/side_panel/side_panel_helper.cc b/chrome/browser/ui/views/side_panel/side_panel_helper.cc
 index e10a33f87f..6c3260857c 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel_helper.cc

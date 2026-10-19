@@ -731,6 +731,35 @@ interaction remain **unverified**. The
 independent Windows build, real Store version update, and live OpenAI API
 call remain Phase 0 gates.
 
+### Prism AI native panel header glyphs — 2026-10-19
+
+`docs/design/native-prism-ai-panel-header.md` limits original pin, unpin,
+and close vectors to the Prism AI side-panel entry. Existing native buttons,
+tooltips, accessibility names, focus, and callbacks remain in control. The
+vectors live in `prism/ui/native/prism_side_panel_header_icons.h`; two narrow
+upstream hunks extend patch `0003` and are inventoried in
+`docs/upstream-patches.md`.
+
+Overlay sync and all 19 patch idempotence checks passed. `gn gen` made 36,683
+targets, `gn check` passed for the side-panel target, and
+`autoninja -j1 -C out/PrismFeasibility chrome` succeeded in 15.61 seconds
+with one C++ compile and one link action. On isolated X11 display `:101`,
+`native_prism_ai_pin_smoke.mjs` passed in dark, light, and forced contrast:
+the header control pinned Prism AI, the close control hid its panel, the
+toolbar action reopened it after restart, and the header control unpinned it.
+Reviewed captures are
+`docs/evidence/native-prism-ai-header-{dark,light,forced}-linux-20261019.png`.
+In forced contrast the hovered pin button's opaque highlight obscured the
+glyph; moving the pointer away showed the idle glyph clearly. Ordinary-page
+and Prism WebUI asset smoke, F12/DevTools, and the existing panel lifecycle,
+model-persistence, and Incognito-exclusion smoke passed on the final binary.
+JavaScript syntax, C++ formatting, and diff checks passed.
+
+Windows rendering, touch, narrow panel layout, RTL, assistive announcement,
+and a complete custom panel-header surface remain **unverified or future
+work**. The independent Windows build, real Store version update, and live
+OpenAI API call remain Phase 0 gates.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

@@ -1,14 +1,15 @@
 import {execFileSync, spawnSync} from 'node:child_process';
 import {existsSync, realpathSync} from 'node:fs';
-import {mkdtemp, readFile, rm} from 'node:fs/promises';
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
-const [binaryArg, screenshot] = process.argv.slice(2);
-if (!binaryArg || !screenshot || !process.env.DISPLAY || process.env.DISPLAY === ':0') {
-  throw new Error('Usage: DISPLAY=:isolated node native_prism_ai_pin_smoke.mjs <source-built chrome> <screenshot.png>');
+const [binaryArg, screenshot, mode = 'dark'] = process.argv.slice(2);
+if (!binaryArg || !screenshot || !process.env.DISPLAY || process.env.DISPLAY === ':0' ||
+    !['dark', 'light', 'forced-contrast'].includes(mode)) {
+  throw new Error('Usage: DISPLAY=:isolated node native_prism_ai_pin_smoke.mjs <source-built chrome> <screenshot.png> [dark|light|forced-contrast]');
 }
 const binary = realpathSync(binaryArg);
 const source = resolve(dirname(binary), '..', '..');
@@ -37,7 +38,8 @@ async function launch(profile) {
     ignoreDefaultArgs: ['--disable-extensions', '--disable-component-extensions-with-background-pages'],
     args: ['--no-sandbox', '--disable-gpu', '--ozone-platform=x11',
       '--window-size=1280,900', '--window-position=0,0', '--no-first-run',
-      '--no-default-browser-check', '--remote-debugging-port=0'],
+      '--no-default-browser-check', '--remote-debugging-port=0',
+      ...(mode === 'forced-contrast' ? ['--force-high-contrast'] : [])],
   });
 }
 
@@ -60,6 +62,11 @@ async function waitFor(check, page, description) {
 const profile = await mkdtemp(join(tmpdir(), 'prism-ai-pin-smoke-'));
 let browser;
 try {
+  await mkdir(join(profile, 'Default'));
+  await writeFile(join(profile, 'Default', 'Preferences'), JSON.stringify({
+    extensions: {theme: {system_theme: 0}},
+    browser: {theme: {color_scheme2: mode === 'dark' ? 2 : 1}},
+  }));
   browser = await launch(profile);
   let page = browser.pages()[0] ?? await browser.newPage();
   await page.goto('chrome://version/');
@@ -68,8 +75,11 @@ try {
   await waitFor(() => panelTarget(profile), page, 'native Prism AI panel');
   await page.waitForTimeout(900);
   native('click:1227,106');
-  await page.waitForTimeout(500);
+  native('move:800,500');
+  await page.waitForTimeout(900);
   capture(screenshot);
+  native('click:1257,106');
+  await waitFor(async () => !await panelTarget(profile), page, 'Prism AI panel to close');
   await browser.close();
   browser = undefined;
 
@@ -93,7 +103,7 @@ try {
   if (unpinned.toolbar?.pinned_actions?.includes('kActionSidePanelShowPrismAi')) {
     throw new Error('Native panel unpin button did not clear the Prism AI action');
   }
-  console.log('PASS: native panel pin persisted across restart, toolbar action reopened Prism AI, and native unpin cleared it');
+  console.log(`PASS: ${mode} native pin, close, restart, toolbar reopen, and unpin`);
 } finally {
   if (browser) await browser.close();
   await rm(profile, {recursive: true, force: true});
