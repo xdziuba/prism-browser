@@ -691,6 +691,38 @@ This closes the tested Linux keyboard route without changing browser source
 or rebuilding it. Shift+Tab traversal, screen-reader announcement, touch,
 RTL, Windows, and the complete navigation layout remain **unverified**.
 
+### Native Prism AI action mark — 2026-10-19
+
+`docs/design/native-prism-ai-action.md` records the decision to replace the
+generic ChatSpark glyph on the existing pinnable side-panel action with a
+monochrome Prism triangle. The label, native toggle, pin state, tooltip, and
+icon color ID remain on Chromium's existing action path. Prism owns the vector
+in `prism/ui/native/prism_ai_action_icon.h`; the two upstream hunks are folded
+into patch `0003` and listed in `docs/upstream-patches.md`.
+
+The overlay sync and all 19 Chromium patch idempotence checks passed. `gn gen`
+made 36,683 targets, `gn check` passed for `browser_actions_impl`, and
+`autoninja -j1 -C out/PrismFeasibility chrome` succeeded in 58.82 seconds with
+one C++ compile and one link action. On isolated X11 display `:101`,
+`native_prism_ai_action_smoke.mjs` seeded the action into a disposable
+profile's pinned-toolbar preference, captured the real native toolbar, and
+clicked the action to open and close `chrome://prism-ai-panel/`. Dark, light,
+and forced-contrast runs passed; reviewed captures are
+`docs/evidence/native-prism-ai-action-{dark,light,forced}-linux-20261019.png`
+and `docs/evidence/native-prism-ai-panel-dark-linux-20261019.png`. The first
+light-mode run opened the target but raced its close transition; waiting for
+the native panel to render made the repeated light run pass. Ordinary-page and
+Prism WebUI asset smoke, F12/DevTools, and the existing panel lifecycle,
+model-persistence, and Incognito-exclusion smoke all passed on the final
+binary. `node --check`, `clang-format --dry-run --Werror`, and diff checks
+passed.
+
+This checks the seeded pinned-action path on Linux. Manual pin/unpin from the
+side-panel menu, accessibility announcement, narrow toolbar overflow, touch,
+RTL, Windows, and live model interaction remain **unverified**. The
+independent Windows build, real Store version update, and live OpenAI API
+call remain Phase 0 gates.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

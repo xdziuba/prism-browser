@@ -12,11 +12,35 @@ index b1ba8e8be0..85b4d1e2ef 100644
  
  #define TOOLBAR_PINNABLE_ACTION_IDS \
    E(kActionHome, IDC_HOME) \
+diff --git a/chrome/browser/ui/BUILD.gn b/chrome/browser/ui/BUILD.gn
+index ad12e432d3..cec8152f35 100644
+--- a/chrome/browser/ui/BUILD.gn
++++ b/chrome/browser/ui/BUILD.gn
+@@ -293,6 +293,9 @@ if (!is_android) {
+ 
+   source_set("browser_actions_impl") {
+     sources = [ "browser_actions.cc" ]
++    if (is_linux || is_win) {
++      sources += [ "//prism/ui/native/prism_ai_action_icon.h" ]
++    }
+     public_deps = [ "//base" ]
+     deps = [
+       ":browser_actions",
 diff --git a/chrome/browser/ui/browser_actions.cc b/chrome/browser/ui/browser_actions.cc
-index b657d04fb7..8d25a10570 100644
+index b657d04fb7..28bbfa2252 100644
 --- a/chrome/browser/ui/browser_actions.cc
 +++ b/chrome/browser/ui/browser_actions.cc
-@@ -430,6 +430,22 @@ void BrowserActions::InitializeSidePanelActions() {
+@@ -64,6 +64,9 @@
+ #include "ui/base/interaction/element_identifier.h"
+ #include "ui/base/interaction/element_tracker.h"
+ #include "ui/base/window_open_disposition.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_ai_action_icon.h"
++#endif
+ #if BUILDFLAG(IS_MAC)
+ #include "chrome/browser/global_keyboard_shortcuts_mac.h"
+ #include "chrome/browser/ui/browser_commands_mac.h"
+@@ -430,6 +433,22 @@ void BrowserActions::InitializeSidePanelActions() {
    Profile* const profile = base::to_address(profile_);
    BrowserWindowInterface* const bwi = base::to_address(bwi_);
  
@@ -29,7 +53,7 @@ index b657d04fb7..8d25a10570 100644
 +          .SetText(u"Prism AI")
 +          .SetTooltipText(u"Prism AI")
 +          .SetImage(ui::ImageModel::FromVectorIcon(
-+              vector_icons::kChatSparkIcon, ui::kColorIcon))
++              prism::kAiActionIcon, ui::kColorIcon))
 +          .SetProperty(actions::kActionItemPinnableKey,
 +                       std::underlying_type_t<actions::ActionPinnableState>(
 +                           actions::ActionPinnableState::kPinnable))
