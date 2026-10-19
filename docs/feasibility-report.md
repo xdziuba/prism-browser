@@ -717,9 +717,17 @@ model-persistence, and Incognito-exclusion smoke all passed on the final
 binary. `node --check`, `clang-format --dry-run --Werror`, and diff checks
 passed.
 
-This checks the seeded pinned-action path on Linux. Manual pin/unpin from the
-side-panel menu, accessibility announcement, narrow toolbar overflow, touch,
-RTL, Windows, and live model interaction remain **unverified**. The
+`native_prism_ai_pin_smoke.mjs` then exercised the separate user path without
+seeding a preference: the native panel header's pin button persisted
+`kActionSidePanelShowPrismAi`, the pinned toolbar action reopened the panel
+after a browser restart, and the same header button removed the preference.
+The reviewed native capture is
+`docs/evidence/native-prism-ai-pinned-linux-20261019.png`. This additional
+test changed no browser source and needed no relink.
+
+The seeded and manual pin paths are checked on Linux. Accessibility
+announcement, narrow toolbar overflow, touch, RTL, Windows, and live model
+interaction remain **unverified**. The
 independent Windows build, real Store version update, and live OpenAI API
 call remain Phase 0 gates.
 
