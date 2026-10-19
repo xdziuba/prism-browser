@@ -145,7 +145,7 @@ def main():
         elif item.startswith("type:"):
             for character in item.removeprefix("type:"):
                 press(character)
-        elif item.startswith(("click:", "move:")):
+        elif item.startswith(("click:", "right-click:", "move:")):
             if item == 'click:dialog-open':
                 attributes = WindowAttributes()
                 x11.XGetWindowAttributes(display, window, ctypes.byref(attributes))
@@ -157,9 +157,10 @@ def main():
                     or y >= x11.XDisplayHeight(display, 0)):
                 raise RuntimeError("X11 display is too small for the native dialog")
             xtst.XTestFakeMotionEvent(display, -1, x, y, 0)
-            if item.startswith("click:"):
-                xtst.XTestFakeButtonEvent(display, 1, 1, 0)
-                xtst.XTestFakeButtonEvent(display, 1, 0, 0)
+            if item.startswith(("click:", "right-click:")):
+                button = 3 if item.startswith("right-click:") else 1
+                xtst.XTestFakeButtonEvent(display, button, 1, 0)
+                xtst.XTestFakeButtonEvent(display, button, 0, 0)
         elif item == "Ctrl+L":
             control = keycode("Control_L")[0]
             xtst.XTestFakeKeyEvent(display, control, 1, 0)

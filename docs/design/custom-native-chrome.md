@@ -142,7 +142,15 @@ already applied. Reviewed dark, light, and forced-contrast screenshots are
 `docs/evidence/prism-new-tab-*-linux-20261016.png`. The forced-contrast
 capture shows the inherited flat background and system-colored icon. The
 context menu, Linux middle-click path, touch behavior, and Windows rendering
-are still **unverified**.
+were still **unverified** at that point.
+
+### Context-menu check
+
+On the built Linux browser, a native X11 right-click on the Prism New Tab
+button opened Chromium's menu with New Tab, group, and split-view actions.
+Escape closed it without changing the page or tab count. The menu is still
+Chromium-styled; its visual replacement belongs to the later menu-surface
+slice. Middle-click, touch, and Windows behavior remain unverified.
 
 ## Tab close affordance
 

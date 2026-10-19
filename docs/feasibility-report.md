@@ -1,6 +1,6 @@
 # Phase 0 feasibility report
 
-Updated: 2026-10-18. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
+Updated: 2026-10-19. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
 
 ## Current environment
 
@@ -441,8 +441,21 @@ forced-contrast captures are
 `docs/evidence/prism-new-tab-*-linux-20261016.png`. A first visual capture
 showed an overly tall fill; centering it into a 25 px square corrected the
 geometry and was included in the final build and test. The context menu,
-Linux middle click, touch and Windows behavior remain **unverified**, as do
+Linux middle click, touch and Windows behavior were **unverified** then, as are
 the remaining custom tab and toolbar components and true backdrop blur.
+
+On 2026-10-19, the extended New Tab smoke sent a real X11 right-click to the
+Prism control. Chromium's context menu opened with New Tab, group, and split
+view entries; the menu region changed by 22,014 pixels. Escape restored the
+same region to its baseline (zero changed pixels), and the active page and tab
+count were unchanged. The check passed two sequential runs after waiting
+for Chromium's startup UI to settle; the ordinary left-click New Tab path
+passed again. Reviewed evidence:
+`docs/evidence/prism-new-tab-context-menu-linux-20261019.png`. An early
+comparison raced the startup security infobar and failed despite the menu
+closing; the stable test excludes the address row and waits for startup.
+No browser source changed, so no rebuild was needed. The menu's style,
+middle-click path, touch, and Windows remain **unverified**.
 
 ### Custom native tab close affordance — 2026-10-16
 
