@@ -359,5 +359,18 @@ the final version disables that overlay and draws a system-colored outline.
 Reviewed dark, light, forced-contrast, and 700 px captures show the glyph and
 hover state inside the address bar. Real X11 click-to-clear and subsequent
 Enter passed in all four modes. The ordinary page, Prism WebUI, and F12 also
-passed on the final Linux binary. Windows, touch, RTL and focus traversal are
-unverified.
+passed on the final Linux binary. Windows, touch, RTL and focus traversal were
+unverified at that point.
+
+### Keyboard traversal check
+
+The source-built Linux browser keeps Chromium's omnibox suggestion behavior:
+while the suggestion popup is open, Tab cycles its choices and does not move
+focus to the Clear all button. Escape closes the popup without discarding the
+typed input. The first Tab then focuses the AI Mode chip, and the second Tab
+focuses Clear all with a visible ring. Space activates that button and clears
+the input; Enter afterward keeps the original page. The native X11 sequence
+passed in dark, light, forced-contrast, and 700 px modes. Reviewed dark and
+forced-contrast captures show the ring on Clear all. This verifies one
+keyboard route on Linux; screen-reader announcement, Shift+Tab traversal,
+touch, RTL, and Windows remain open.

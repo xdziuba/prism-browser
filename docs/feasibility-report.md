@@ -656,9 +656,27 @@ control does not overflow. Ordinary-page/Prism WebUI and F12/DevTools smokes
 passed on the same binary. JavaScript syntax and diff checks passed.
 
 Keyboard focus traversal, screen-reader announcement, touch, RTL, Windows,
-and the complete navigation layout remain **unverified**. The independent
-Windows build, real Store version update, and live OpenAI API call remain
-Phase 0 gates.
+and the complete navigation layout remained **unverified** at that point.
+The independent Windows build, real Store version update, and live OpenAI API
+call remain Phase 0 gates.
+
+### Native omnibox Clear all keyboard route — 2026-10-19
+
+The source-built Linux browser's omnibox popup intercepted Tab for suggestion
+navigation in a real X11 probe, so a direct Tab sequence did not reach Clear
+all. Escape closed the popup while preserving typed text. One Tab focused the
+AI Mode chip; a second focused Clear all with a visible ring. Space cleared
+the text, the glyph disappeared, and Enter kept the original page. The
+extended `native_omnibox_clear_smoke.mjs` passed that route in dark, light,
+forced-contrast, and 700 px modes. The reviewed focus captures are
+`docs/evidence/prism-omnibox-clear-focus-{dark,forced}-linux-20261019.png`.
+An initial parallel run of light and forced-contrast tests on the same Xvfb
+display interfered with both windows and failed; each test passed when run
+sequentially, which is the valid isolation for native-focus verification.
+
+This closes the tested Linux keyboard route without changing browser source
+or rebuilding it. Shift+Tab traversal, screen-reader announcement, touch,
+RTL, Windows, and the complete navigation layout remain **unverified**.
 
 ### Selected-tabs context preview — 2026-10-15
 

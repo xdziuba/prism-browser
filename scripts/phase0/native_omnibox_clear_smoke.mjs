@@ -8,9 +8,11 @@ import { spawnSync } from 'node:child_process';
 const executablePath = process.argv[2];
 const display = process.env.DISPLAY;
 const mode = process.env.PRISM_CLEAR_MODE ?? 'dark';
+const activation = process.env.PRISM_CLEAR_ACTIVATION ?? 'pointer';
 const width = Number(process.env.PRISM_CLEAR_WIDTH ?? 1280);
 if (!executablePath || !display || display === ':0' ||
     !['dark', 'light', 'forced-contrast'].includes(mode) ||
+    !['pointer', 'keyboard'].includes(activation) ||
     !Number.isInteger(width) || width < 700 || width > 1280) {
   console.error('Usage: DISPLAY=:isolated node scripts/phase0/native_omnibox_clear_smoke.mjs <source-built chrome>');
   process.exit(2);
@@ -103,14 +105,29 @@ try {
     throw new Error(`Clear all glyph was not visible (${glyph.score} visual score)`);
   }
 
-  if (process.env.PRISM_CLEAR_HOVER_SCREENSHOT) {
-    nativeClick(`move:${glyph.x},62`);
-    await page.waitForTimeout(300);
-    capture(process.env.PRISM_CLEAR_HOVER_SCREENSHOT);
-  }
+  if (activation === 'keyboard') {
+    // An open suggestion popup consumes Tab for suggestion navigation. Escape
+    // closes it; Tab reaches the AI chip, then the clear button.
+    native('Escape');
+    await page.waitForTimeout(200);
+    native('Tab');
+    await page.waitForTimeout(200);
+    native('Tab');
+    await page.waitForTimeout(200);
+    if (process.env.PRISM_CLEAR_FOCUS_SCREENSHOT) {
+      capture(process.env.PRISM_CLEAR_FOCUS_SCREENSHOT);
+    }
+    native('space');
+  } else {
+    if (process.env.PRISM_CLEAR_HOVER_SCREENSHOT) {
+      nativeClick(`move:${glyph.x},62`);
+      await page.waitForTimeout(300);
+      capture(process.env.PRISM_CLEAR_HOVER_SCREENSHOT);
+    }
 
-  // The clear action shifts when a trailing AI/page action is present.
-  nativeClick(`click:${glyph.x},62`, 'move:800,450');
+    // The clear action shifts when a trailing AI/page action is present.
+    nativeClick(`click:${glyph.x},62`, 'move:800,450');
+  }
   await page.waitForTimeout(350);
   const after = process.env.PRISM_CLEAR_AFTER_SCREENSHOT ?? join(profile, 'after.png');
   capture(after);
@@ -122,7 +139,7 @@ try {
   if (page.url() !== originalUrl) {
     throw new Error(`Clear action left navigable text in the omnibox: ${page.url()}`);
   }
-  console.log(`PASS: native omnibox Clear all at x=${glyph.x} disappeared; Enter kept the original page`);
+  console.log(`PASS: ${activation} omnibox Clear all at x=${glyph.x} disappeared; Enter kept the original page`);
 } finally {
   if (browser) await browser.close();
   await rm(profile, { recursive: true, force: true });
