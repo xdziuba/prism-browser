@@ -103,6 +103,12 @@ try {
     throw new Error(`Clear all glyph was not visible (${glyph.score} visual score)`);
   }
 
+  if (process.env.PRISM_CLEAR_HOVER_SCREENSHOT) {
+    nativeClick(`move:${glyph.x},62`);
+    await page.waitForTimeout(300);
+    capture(process.env.PRISM_CLEAR_HOVER_SCREENSHOT);
+  }
+
   // The clear action shifts when a trailing AI/page action is present.
   nativeClick(`click:${glyph.x},62`, 'move:800,450');
   await page.waitForTimeout(350);

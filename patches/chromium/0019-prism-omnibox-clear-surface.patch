@@ -1,0 +1,49 @@
+diff --git a/chrome/browser/ui/views/location_bar/BUILD.gn b/chrome/browser/ui/views/location_bar/BUILD.gn
+--- a/chrome/browser/ui/views/location_bar/BUILD.gn
++++ b/chrome/browser/ui/views/location_bar/BUILD.gn
+@@ -211,6 +211,12 @@
+       "//ui/native_theme",
+       "//ui/strings:ui_strings_grit",
+     ]
++    if (is_linux || is_win) {
++      sources += [
++        "//prism/ui/native/prism_omnibox_clear_button.cc",
++        "//prism/ui/native/prism_omnibox_clear_button.h",
++      ]
++    }
+     if (is_mac) {
+       deps += [ "//chrome/browser/ui:fullscreen_util_mac" ]
+     }
+diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -95,6 +95,9 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "chrome/grit/omnibox_popup_resources.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_omnibox_clear_button.h"
++#endif
+ #include "components/commerce/core/commerce_feature_list.h"
+ #include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/content_settings/core/common/features.h"
+@@ -505,10 +508,17 @@
+           page_action_items, page_actions::PageActionPropertiesProvider(),
+           page_action_params));
+ 
+-  auto clear_all_button = views::CreateVectorImageButton(base::BindRepeating(
++  auto clear_all_callback = base::BindRepeating(
+       static_cast<void (OmniboxView::*)(const std::u16string&)>(
+           &OmniboxView::SetUserText),
+-      base::Unretained(omnibox_view_), std::u16string()));
++      base::Unretained(omnibox_view_), std::u16string());
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  auto clear_all_button =
++      std::make_unique<PrismOmniboxClearButton>(std::move(clear_all_callback));
++#else
++  auto clear_all_button =
++      views::CreateVectorImageButton(std::move(clear_all_callback));
++#endif
+   clear_all_button->SetTooltipText(
+       l10n_util::GetStringUTF16(IDS_OMNIBOX_CLEAR_ALL));
+   clear_all_button_ = AddChildView(std::move(clear_all_button));

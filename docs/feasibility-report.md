@@ -630,6 +630,36 @@ Windows rendering, real backdrop blur, and the complete navigation layout
 remain **unverified**. The Windows build, real Store version update, and live
 OpenAI API call remain independent Phase 0 gates.
 
+### Prism omnibox Clear all surface — 2026-10-19
+
+The decision in `docs/design/custom-native-chrome.md` adds a Prism-owned
+`ImageButton` subclass for the existing clear action. Patch `0019` changes
+only its Linux/Windows construction and the location-bar GN source list;
+the callback, tooltip, insets, icon color mapping, text editor,
+and touch-specific backspace icon remain on Chromium's existing paths.
+
+`gn gen` produced 36,683 targets and `gn check` passed for
+`//chrome/browser/ui/views/location_bar:impl`. The first `chrome -j1` build
+passed in 57.17s (3 actions). Its forced-contrast hover screenshot showed the
+generic ink-drop layer obscuring the glyph. After disabling that layer for
+this subclass and adding a system-colored hover outline, the final single-job
+`chrome` relink passed in 22.77s (2 actions). The intermediate relocation of
+the two upstream hunks also passed a `chrome -j1` relink in 54.61s; all 19
+patches then passed the idempotence checker.
+
+On the final binary, `native_omnibox_clear_smoke.mjs` passed in dark, light,
+forced contrast, and 700 px modes. A real X11 click cleared typed text and
+Enter kept the original page. Reviewed hover captures are
+`docs/evidence/prism-omnibox-clear-hover-{dark,light,forced,narrow}-linux-20261019.png`.
+The forced-contrast glyph stays visible within a thin outline; the narrow
+control does not overflow. Ordinary-page/Prism WebUI and F12/DevTools smokes
+passed on the same binary. JavaScript syntax and diff checks passed.
+
+Keyboard focus traversal, screen-reader announcement, touch, RTL, Windows,
+and the complete navigation layout remain **unverified**. The independent
+Windows build, real Store version update, and live OpenAI API call remain
+Phase 0 gates.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

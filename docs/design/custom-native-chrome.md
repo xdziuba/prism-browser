@@ -325,3 +325,39 @@ forced contrast, and 700 px windows. The icon uses Chromium's resolved icon
 color in forced contrast and remains inside the omnibox at 700 px. Keyboard
 focus order, touch, RTL, Windows, and screen-reader announcement remain
 unverified for the larger navigation-layout slice.
+
+## Omnibox clear surface
+
+The clear action now has a Prism glyph but still uses Chromium's generic
+`ImageButton` surface. Give it a Prism-owned `ImageButton` subclass with a
+compact rounded hover and pressed surface, a one-pixel rim, and immediate
+state feedback. Leave its idle surface transparent so the editable text has
+the visual priority and the narrow omnibox retains space. Select the subclass
+only for the existing Linux/Windows clear action, with the same callback,
+tooltip, focus ring, icon color mapping, button insets, and touch backspace
+mode. The painter uses the resolved Prism toolbar tokens and falls back to
+Chromium's background for other themes and touch UI. In forced contrast, it
+draws a thin hover outline in the resolved icon color. The generic ink drop
+is disabled for this subclass because its forced-contrast hover overlay
+covered the clear glyph in an X11 visual check.
+
+This follows the Apple Design skill's immediate-feedback and spatial-
+consistency principles and the local liquid-glass skill's fill/rim anatomy.
+There is no animation or compositor blur on this compact control. The source
+lives under `prism/ui/native/`; the upstream delta is limited to the existing
+location-bar construction and GN target. Verify the real native click and
+hover visual in dark/light, forced-contrast fallback, 700 px layout, ordinary
+page and Prism WebUI, and F12. Keyboard focus order, Windows, touch and RTL
+remain separate gates until exercised.
+
+### Observed Linux result
+
+`PrismOmniboxClearButton` now paints the hover and pressed surface inside the
+existing clear action without changing its bounds or callback. The first
+forced-contrast hover capture exposed an ink-drop overlay that hid the glyph;
+the final version disables that overlay and draws a system-colored outline.
+Reviewed dark, light, forced-contrast, and 700 px captures show the glyph and
+hover state inside the address bar. Real X11 click-to-clear and subsequent
+Enter passed in all four modes. The ordinary page, Prism WebUI, and F12 also
+passed on the final Linux binary. Windows, touch, RTL and focus traversal are
+unverified.
