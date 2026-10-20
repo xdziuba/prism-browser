@@ -866,6 +866,32 @@ assistive announcements remain **unverified**. The Windows build, actual
 Chrome Web Store version transition and live OpenAI API call remain Phase 0
 gates.
 
+### Prism native overflow control — 2026-10-20
+
+`docs/design/native-overflow-control.md` records a Prism-owned subclass of
+Chromium's responsive `OverflowButton` with an original double-chevron glyph
+and the shared inset control surface. Patch `0013` gained two guarded GN
+source entries and one guarded class selection in `toolbar_view.cc`; the
+existing overflow decision, menu model, accessible popup semantics and
+alternate WebUI-toolbar mode were not changed. `gn gen` produced 36,683
+targets, toolbar `gn check` passed, and `autoninja -j1 ... chrome` passed in
+34.84 seconds with three steps. The checker found all 19 patches already
+applied; `clang-format`, `node --check` and `git diff --check` passed.
+
+On isolated X11 at a 500 px native window, reviewed dark, light and forced
+contrast captures show the responsive control. An XTest click opened the
+real menu with Forward, Home and Profile entries; Escape dismissed it.
+Evidence is in `docs/evidence/prism-overflow-*-linux-20261020.png`. On the
+final binary, ordinary-page/Prism WebUI smoke, F12, native panel lifecycle
+and Back/Forward keyboard/click smoke all passed. The screenshot harness
+lowered its minimum native width to 320 px and gained optional native
+click/Escape controls; these tests used 500 px.
+
+Windows, touch, RTL, keyboard focus traversal, assistive announcement and
+custom themes remain **unverified**. Overflow menu rows retain Chromium's
+presentation. The independent Phase 0 Windows build, actual Store version
+transition and live OpenAI API call remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

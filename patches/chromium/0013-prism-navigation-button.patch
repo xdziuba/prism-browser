@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/toolbar/BUILD.gn b/chrome/browser/ui/views/toolbar/BUILD.gn
-index 4217e001e0..9cb9b76043 100644
+index 4217e001e0..55f442cbd5 100644
 --- a/chrome/browser/ui/views/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/views/toolbar/BUILD.gn
-@@ -218,6 +218,27 @@ source_set("impl") {
+@@ -218,6 +218,29 @@ source_set("impl") {
      "webui_toolbar_web_view.cc",
    ]
  
@@ -22,6 +22,8 @@ index 4217e001e0..9cb9b76043 100644
 +      "//prism/ui/native/prism_navigation_rail_background.h",
 +      "//prism/ui/native/prism_navigation_surface.cc",
 +      "//prism/ui/native/prism_navigation_surface.h",
++      "//prism/ui/native/prism_overflow_button.cc",
++      "//prism/ui/native/prism_overflow_button.h",
 +      "//prism/ui/native/prism_reload_button.cc",
 +      "//prism/ui/native/prism_reload_button.h",
 +    ]
@@ -31,10 +33,10 @@ index 4217e001e0..9cb9b76043 100644
      sources += [
        "webui_toolbar_web_view_util_mac.h",
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index 4c5c285eac..80c1932cd8 100644
+index 4c5c285eac..ba19792363 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -139,6 +139,14 @@
+@@ -139,6 +139,15 @@
  #include "components/strings/grit/components_strings.h"
  #include "content/public/browser/render_view_host.h"
  #include "content/public/browser/web_contents.h"
@@ -44,12 +46,13 @@ index 4c5c285eac..80c1932cd8 100644
 +#include "prism/ui/native/prism_home_button.h"
 +#include "prism/ui/native/prism_navigation_button.h"
 +#include "prism/ui/native/prism_navigation_rail_background.h"
++#include "prism/ui/native/prism_overflow_button.h"
 +#include "prism/ui/native/prism_reload_button.h"
 +#endif
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "ui/accessibility/ax_node_data.h"
-@@ -354,6 +362,10 @@ void ToolbarView::Init() {
+@@ -354,6 +363,10 @@ void ToolbarView::Init() {
    // Make sure the toolbar shows by default.
    size_animation_.Reset(1);
  
@@ -60,7 +63,7 @@ index 4c5c285eac..80c1932cd8 100644
    if (display_mode_ != DisplayMode::kNormal) {
      CHECK(location_bar_view)
          << "Alternate location bar impls need to handle this.";
-@@ -363,10 +375,17 @@ void ToolbarView::Init() {
+@@ -363,10 +376,17 @@ void ToolbarView::Init() {
    }
  
    if (display_mode_ == DisplayMode::kNormal) {
@@ -78,7 +81,7 @@ index 4c5c285eac..80c1932cd8 100644
    } else if (display_mode_ == DisplayMode::kCustomTab) {
      custom_tab_bar_ =
          AddChildView(std::make_unique<CustomTabBarView>(browser_view_, this));
-@@ -430,10 +449,15 @@ void ToolbarView::Init() {
+@@ -430,10 +450,15 @@ void ToolbarView::Init() {
  
    // Always add children in order from left to right, for accessibility.
    if (!features::IsWebUIBackForwardButtonEnabled()) {
@@ -96,7 +99,7 @@ index 4c5c285eac..80c1932cd8 100644
          BackForwardButton::Direction::kForward,
          base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
    }
-@@ -452,14 +476,30 @@ void ToolbarView::Init() {
+@@ -452,14 +477,30 @@ void ToolbarView::Init() {
    if (!features::IsWebUIReloadButtonEnabled() ||
        base::FeatureList::IsEnabled(
            features::kWebUIToolbarProcessOverheadExperiment)) {
@@ -129,7 +132,7 @@ index 4c5c285eac..80c1932cd8 100644
          browser_, base::BindRepeating(callback, browser_, IDC_HOME)));
    }
  
-@@ -610,7 +650,12 @@ void ToolbarView::Init() {
+@@ -610,7 +651,12 @@ void ToolbarView::Init() {
    }
  
    if (!features::IsWebUIAvatarButtonEnabled()) {
@@ -143,7 +146,20 @@ index 4c5c285eac..80c1932cd8 100644
      bool show_avatar_toolbar_button =
          AvatarToolbarButtonInterface::CanShowForProfile(browser_->GetProfile());
      avatar_->SetVisible(show_avatar_toolbar_button);
-@@ -627,7 +672,12 @@ void ToolbarView::Init() {
+@@ -620,14 +666,24 @@ void ToolbarView::Init() {
+   // controls. If there aren't any, the WebUIToolbarWebView will handle all
+   // layout and overflow itself, in Javascript.
+   if (!features::IsWebUIToolbarFullyEnabled()) {
+-    overflow_button_ = AddChildView(std::make_unique<OverflowButton>());
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    using OverflowButtonClass = PrismOverflowButton;
++#else
++    using OverflowButtonClass = OverflowButton;
++#endif
++    overflow_button_ = AddChildView(std::make_unique<OverflowButtonClass>());
+     overflow_button_->SetVisible(false);
+   }
+ 
    // WebUI app menu button handles these internally, so no need to set these
    // properties here, and the control is added as part of the WebUI toolbar.
    if (!features::IsWebUIAppMenuButtonEnabled()) {

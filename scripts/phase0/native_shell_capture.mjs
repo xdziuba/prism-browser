@@ -10,7 +10,7 @@ const display = process.env.DISPLAY;
 const width = Number(widthArg);
 if (!executablePath || !screenshotPath || !display ||
     !['dark', 'light', 'forced-contrast'].includes(mode) ||
-    !Number.isInteger(width) || width < 600 || width > 2000) {
+    !Number.isInteger(width) || width < 320 || width > 2000) {
   console.error('Usage: DISPLAY=:N node scripts/phase0/native_shell_capture.mjs <chrome binary> <output.png> [dark|light|forced-contrast] [width]');
   process.exit(2);
 }
@@ -62,13 +62,16 @@ try {
   if (process.env.PRISM_NATIVE_FOCUS === '1') {
     await page.keyboard.press('Control+L');
   }
-  if (process.env.PRISM_NATIVE_HOVER_X) {
-    const x = Number(process.env.PRISM_NATIVE_HOVER_X);
+  const nativeClick = process.env.PRISM_NATIVE_CLICK_X;
+  const nativeHover = process.env.PRISM_NATIVE_HOVER_X;
+  if (nativeClick || nativeHover) {
+    const x = Number(nativeClick ?? nativeHover);
     if (!Number.isInteger(x) || x < 0 || x >= width) {
-      throw new Error('PRISM_NATIVE_HOVER_X must be inside the browser window');
+      throw new Error('Native action X must be inside the browser window');
     }
     const motion = spawnSync('python3', ['-c', `
 import ctypes, sys
+import time
 x11 = ctypes.CDLL('libX11.so.6')
 xtst = ctypes.CDLL('libXtst.so.6')
 x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
@@ -76,14 +79,34 @@ x11.XOpenDisplay.restype = ctypes.c_void_p
 x11.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
 x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
 xtst.XTestFakeMotionEvent.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_ulong]
+xtst.XTestFakeButtonEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
+xtst.XTestFakeKeyEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
+x11.XStringToKeysym.argtypes = [ctypes.c_char_p]
+x11.XStringToKeysym.restype = ctypes.c_ulong
+x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+x11.XKeysymToKeycode.restype = ctypes.c_uint
 d = x11.XOpenDisplay(sys.argv[1].encode())
 if not d: raise SystemExit('XOpenDisplay failed')
 if not xtst.XTestFakeMotionEvent(d, 0, int(sys.argv[2]), 63, 0):
     raise SystemExit('XTest motion failed')
 x11.XSync(d, 0)
+if sys.argv[3] == 'click':
+    if not xtst.XTestFakeButtonEvent(d, 1, 1, 0): raise SystemExit('XTest press failed')
+    x11.XSync(d, 0)
+    if not xtst.XTestFakeButtonEvent(d, 1, 0, 0): raise SystemExit('XTest release failed')
+    x11.XSync(d, 0)
+    if sys.argv[4] == 'escape':
+        time.sleep(0.3)
+        key = x11.XKeysymToKeycode(d, x11.XStringToKeysym(b'Escape'))
+        if not key: raise SystemExit('Escape key mapping failed')
+        for pressed in (1, 0):
+            if not xtst.XTestFakeKeyEvent(d, key, pressed, 0):
+                raise SystemExit('XTest Escape failed')
+        x11.XSync(d, 0)
 x11.XCloseDisplay(d)
-`, display, String(x)], { encoding: 'utf8' });
-    if (motion.status !== 0) throw new Error(motion.stderr || 'XTest motion failed');
+`, display, String(x), nativeClick ? 'click' : 'hover',
+      process.env.PRISM_NATIVE_ESCAPE_AFTER_CLICK === '1' ? 'escape' : 'keep'], { encoding: 'utf8' });
+    if (motion.status !== 0) throw new Error(motion.stderr || 'XTest action failed');
   }
   const captureWait = Number(process.env.PRISM_NATIVE_CAPTURE_WAIT_MS ?? 4000);
   if (!Number.isInteger(captureWait) || captureWait < 0 || captureWait > 15000) {

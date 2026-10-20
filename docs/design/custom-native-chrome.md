@@ -33,7 +33,9 @@ Implement the shell in these reviewable slices:
 The first navigation-layout slice is recorded in
 `docs/design/native-navigation-rail.md`: Back, Forward and Reload/Stop now
 share a Prism-owned native rail while keeping separate actions. The editable
-omnibox and overflow behavior still use Chromium's model and layout.
+omnibox and overflow behavior still use Chromium's model and layout. The
+responsive overflow button now has its own Prism glyph and surface, recorded
+in `docs/design/native-overflow-control.md`; its menu remains Chromium-owned.
 
 The style is restrained cool glass: an opaque Linux fallback, a lighter
 raised control fill, one edge highlight, and clear focus. The Apple Design
