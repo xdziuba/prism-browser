@@ -900,6 +900,34 @@ themes and broader RTL layouts remain **unverified**. Overflow menu rows
 retain Chromium's presentation. The independent Phase 0 Windows build,
 actual Store version transition and live OpenAI API call remain open.
 
+### Prism-owned active tab shape — 2026-10-20
+
+`docs/design/native-active-tab-shape.md` records the new path builder for the
+active ordinary horizontal tab. It gives the visual body an inset floating
+outline with 11/8 DIP top/bottom radii. Chromium still owns tab colors,
+selection, hit testing, title/favicon/close layout, drag, groups, split tabs
+and vertical tabs. Patch `0011` now also adds two guarded sources to the
+existing horizontal-tab target and one call from its active visual path;
+`docs/upstream-patches.md` records both affected upstream files.
+
+GN generated 36,683 targets; `gn check` passed for
+`//chrome/browser/ui/views/tabs/common:impl`. The pinned Linux `chrome`
+target linked with `autoninja -j1` in 17.04 seconds (three actions).
+Reviewed `docs/evidence/prism-active-tab-shape-*-linux-20261020.png`
+captures cover three tabs in dark, light and forced contrast at 1280 px and
+dark at 700 px. The active body, favicon, title, close control and New Tab
+control remain legible without collisions. The capture sequence exercised
+`Ctrl+Tab`; native New Tab and close-button smokes, ordinary-page/Prism WebUI,
+F12 and panel lifecycle smokes passed on the final binary. The forced
+contrast capture validates the top browser chrome; Xvfb left its content
+region black. The 19-patch idempotence check, C++ format check and diff
+whitespace checks passed.
+
+Windows, pinned/grouped/split/vertical geometry, drag/close transitions,
+touch, OS theme changes and screen-reader behavior remain **unverified**.
+The independent Phase 0 Windows build, actual Store version transition and
+live OpenAI API call remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

@@ -36,6 +36,9 @@ share a Prism-owned native rail while keeping separate actions. The editable
 omnibox and overflow behavior still use Chromium's model and layout. The
 responsive overflow button now has its own Prism glyph and surface, recorded
 in `docs/design/native-overflow-control.md`; its menu remains Chromium-owned.
+The active horizontal tab body now uses a Prism-owned path recorded in
+`docs/design/native-active-tab-shape.md`, while Chromium still owns hit testing
+and special tab layouts.
 
 The style is restrained cool glass: an opaque Linux fallback, a lighter
 raised control fill, one edge highlight, and clear focus. The Apple Design

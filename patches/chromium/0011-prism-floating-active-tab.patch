@@ -1,5 +1,23 @@
+diff --git a/chrome/browser/ui/views/tabs/common/BUILD.gn b/chrome/browser/ui/views/tabs/common/BUILD.gn
+index 75e30c9bca..415169e916 100644
+--- a/chrome/browser/ui/views/tabs/common/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/common/BUILD.gn
+@@ -86,6 +86,13 @@ source_set("impl") {
+     "vertical_tab_style_views.h",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [
++      "//prism/ui/native/prism_active_tab_path.cc",
++      "//prism/ui/native/prism_active_tab_path.h",
++    ]
++  }
++
+   deps = [
+     "//base:i18n",
+     "//cc/paint",
 diff --git a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
-index 5e8bf7705c..ccad183b38 100644
+index 5e8bf7705c..cd802954ee 100644
 --- a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 +++ b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 @@ -11,6 +11,7 @@
@@ -10,7 +28,17 @@ index 5e8bf7705c..ccad183b38 100644
  #include "cc/paint/paint_flags.h"
  #include "chrome/browser/themes/theme_properties.h"
  #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-@@ -88,9 +89,33 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+@@ -26,6 +27,9 @@
+ #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
+ #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
+ #include "chrome/grit/theme_resources.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_active_tab_path.h"
++#endif
+ #include "third_party/skia/include/core/SkPath.h"
+ #include "third_party/skia/include/core/SkPathBuilder.h"
+ #include "third_party/skia/include/core/SkRRect.h"
+@@ -88,9 +92,33 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
                                     tab_style()->GetSeparatorSize().width()) *
                                    scale;
  
@@ -45,3 +73,21 @@ index 5e8bf7705c..ccad183b38 100644
      float top_left_corner_radius = content_corner_radius;
      float top_right_corner_radius = content_corner_radius;
      float bottom_left_corner_radius = content_corner_radius;
+@@ -164,6 +192,17 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+       }
+     }
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    if (floating_active_tab) {
++      gfx::PointF origin(delegate_->GetView()->origin());
++      origin.Scale(scale);
++      return MakePrismActiveTabPath(
++          SkRect::MakeLTRB(left, top, right, bottom),
++          SkPoint::Make(origin.x(), origin.y()), scale,
++          flags.render_units == TabStyle::RenderUnits::kDips);
++    }
++#endif
++
+     // Radii are clockwise from top left.
+     const SkVector radii[4] = {
+         SkVector(top_left_corner_radius, top_left_corner_radius),
