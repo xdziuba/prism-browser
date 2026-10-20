@@ -39,9 +39,11 @@ retains the system surface and a visible keyboard focus ring. The design
 token text pairs have calculated contrast of 9.59:1 dark and 12.26:1 light;
 actual title glyphs were also reviewed in native captures. Real pin, close,
 restart, toolbar reopen, unpin, and keyboard close passed in dark and forced
-contrast; pointer lifecycle passed in light. A 700-pixel viewport kept the
-header title and actions inside the panel. The full-page WebUI behind that
-panel is clipped at this width; its responsive handling is separate work.
+contrast; pointer lifecycle passed in light. An isolated native 700-pixel
+window kept the header title and actions inside the panel; the full-page
+WebUI behind it reflowed into the remaining width. An earlier capture with a
+fixed Playwright viewport showed artificial clipping and was superseded by
+the native-window result.
 Ordinary page, Prism WebUI, F12, and panel lifecycle tests passed. All 19
 Chromium patches remained idempotent. Windows and non-Prism panel visual
 regression are still open.

@@ -812,11 +812,13 @@ with two C++ compiles and one link. All 19 patch idempotence checks passed.
 On isolated X11 `:101`, native pin, close, restart, toolbar reopen, and unpin
 passed in dark, light, and forced contrast. Dark and forced runs also used
 Tab/Shift+Tab and Enter to close with a visible focus ring. Reviewed native
-captures are `docs/evidence/native-prism-ai-header-shell-{dark,light,forced,narrow}-linux-20261019.png`
-and the corresponding `hover`/`focus` dark and forced captures. A 700-pixel
-viewport kept the header title and controls inside the panel. The full-page
-WebUI behind the panel is clipped at that width, which remains a separate
-responsive-layout issue. The dark and light design-token text pairs calculate
+captures are `docs/evidence/native-prism-ai-header-shell-{dark,light,forced}-linux-20261019.png`,
+`docs/evidence/native-prism-ai-header-shell-narrow-native-linux-20261019.png`,
+and the corresponding `hover`/`focus` dark and forced captures. A native
+700-pixel window kept the header title and controls inside the panel, while
+the full-page WebUI reflowed into the remaining width. The earlier fixed
+Playwright viewport capture caused artificial clipping and was superseded.
+The dark and light design-token text pairs calculate
 to 9.59:1 and 12.26:1 contrast, respectively. Ordinary-page/Prism WebUI,
 F12/DevTools, and native panel lifecycle/model-persistence/Incognito-exclusion
 smokes passed on the final Linux binary. JavaScript syntax and formatting
