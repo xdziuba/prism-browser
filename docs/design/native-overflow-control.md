@@ -31,6 +31,9 @@ The forced-contrast capture retains the glyph and native flat background.
 `browser_smoke.py`, F12, side-panel and native Back/Forward smoke tests passed
 on the final binary. The 19-patch checker reports the patch already applied.
 
-The menu rows still use Chromium's presentation. Windows, touch, RTL,
+An additional 500 px Linux capture with Chromium's forced RTL direction
+showed the control at the leading edge and its original chevrons mirrored.
+A native click opened the mirrored overflow menu. This checks one Linux RTL
+route; the menu rows still use Chromium's presentation. Windows, touch,
 keyboard focus traversal, assistive announcement, custom themes and menu-row
 restyling remain unverified.

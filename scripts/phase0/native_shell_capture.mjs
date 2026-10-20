@@ -39,6 +39,7 @@ try {
       '--no-sandbox', '--disable-gpu', '--ozone-platform=x11',
       `--window-size=${width},900`, '--window-position=0,0',
       '--no-first-run', '--no-default-browser-check',
+      ...(process.env.PRISM_NATIVE_RTL === '1' ? ['--force-ui-direction=rtl'] : []),
       ...(mode === 'forced-contrast' ? ['--force-high-contrast'] : []),
     ],
     viewport: null,

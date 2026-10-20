@@ -887,10 +887,18 @@ and Back/Forward keyboard/click smoke all passed. The screenshot harness
 lowered its minimum native width to 320 px and gained optional native
 click/Escape controls; these tests used 500 px.
 
-Windows, touch, RTL, keyboard focus traversal, assistive announcement and
-custom themes remain **unverified**. Overflow menu rows retain Chromium's
-presentation. The independent Phase 0 Windows build, actual Store version
-transition and live OpenAI API call remain open.
+An additional Linux run with `--force-ui-direction=rtl` at 500 px showed
+the control on the leading edge, its chevrons mirrored, and the native menu
+opened by an XTest click. The retained idle capture is
+`docs/evidence/prism-overflow-rtl-dark-linux-20261020.png`; the menu-open
+capture was reviewed but discarded because Xvfb left most of the window
+unpainted. No Chromium source changed for this RTL probe, so no relink was
+needed. `node --check` passed after adding the optional RTL harness flag.
+
+Windows, touch, keyboard focus traversal, assistive announcement, custom
+themes and broader RTL layouts remain **unverified**. Overflow menu rows
+retain Chromium's presentation. The independent Phase 0 Windows build,
+actual Store version transition and live OpenAI API call remain open.
 
 ### Selected-tabs context preview — 2026-10-15
 
