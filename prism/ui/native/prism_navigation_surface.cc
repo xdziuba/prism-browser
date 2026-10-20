@@ -9,7 +9,8 @@
 #include "ui/gfx/geometry/rect_f.h"
 
 void PaintPrismNavigationSurface(const ToolbarButton& button,
-                                 gfx::Canvas* canvas) {
+                                 gfx::Canvas* canvas,
+                                 bool in_navigation_rail) {
   const ui::ColorProvider* colors = button.GetColorProvider();
   if (!colors || button.width() < 16 || button.height() < 16) {
     return;
@@ -19,6 +20,12 @@ void PaintPrismNavigationSurface(const ToolbarButton& button,
   const bool dark = toolbar == SkColorSetRGB(0x2C, 0x39, 0x42);
   const bool light = toolbar == SkColorSetRGB(0xF5, 0xF9, 0xFB);
   if (!dark && !light) {
+    return;
+  }
+
+  if (in_navigation_rail &&
+      (button.GetState() == ToolbarButton::STATE_NORMAL ||
+       button.GetState() == ToolbarButton::STATE_DISABLED)) {
     return;
   }
 

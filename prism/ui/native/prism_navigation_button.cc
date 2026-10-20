@@ -66,7 +66,7 @@ PrismNavigationButton::PrismNavigationButton(Direction direction,
 PrismNavigationButton::~PrismNavigationButton() = default;
 
 void PrismNavigationButton::PaintButtonContents(gfx::Canvas* canvas) {
-  PaintPrismNavigationSurface(*this, canvas);
+  PaintPrismNavigationSurface(*this, canvas, /*in_navigation_rail=*/true);
 }
 
 BEGIN_METADATA(PrismNavigationButton)

@@ -89,7 +89,7 @@ PrismReloadButton::~PrismReloadButton() = default;
 
 void PrismReloadButton::PaintButtonContents(gfx::Canvas* canvas) {
   ReloadButton::PaintButtonContents(canvas);
-  PaintPrismNavigationSurface(*this, canvas);
+  PaintPrismNavigationSurface(*this, canvas, /*in_navigation_rail=*/true);
 }
 
 void PrismReloadButton::UpdatePrismIcon() {

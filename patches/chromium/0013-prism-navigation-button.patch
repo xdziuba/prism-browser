@@ -1,8 +1,8 @@
 diff --git a/chrome/browser/ui/views/toolbar/BUILD.gn b/chrome/browser/ui/views/toolbar/BUILD.gn
-index 4217e001e0..faec7c2e22 100644
+index 4217e001e0..9cb9b76043 100644
 --- a/chrome/browser/ui/views/toolbar/BUILD.gn
 +++ b/chrome/browser/ui/views/toolbar/BUILD.gn
-@@ -218,6 +218,23 @@ source_set("impl") {
+@@ -218,6 +218,27 @@ source_set("impl") {
      "webui_toolbar_web_view.cc",
    ]
  
@@ -16,6 +16,10 @@ index 4217e001e0..faec7c2e22 100644
 +      "//prism/ui/native/prism_home_button.h",
 +      "//prism/ui/native/prism_navigation_button.cc",
 +      "//prism/ui/native/prism_navigation_button.h",
++      "//prism/ui/native/prism_navigation_rail.cc",
++      "//prism/ui/native/prism_navigation_rail.h",
++      "//prism/ui/native/prism_navigation_rail_background.cc",
++      "//prism/ui/native/prism_navigation_rail_background.h",
 +      "//prism/ui/native/prism_navigation_surface.cc",
 +      "//prism/ui/native/prism_navigation_surface.h",
 +      "//prism/ui/native/prism_reload_button.cc",
@@ -27,10 +31,10 @@ index 4217e001e0..faec7c2e22 100644
      sources += [
        "webui_toolbar_web_view_util_mac.h",
 diff --git a/chrome/browser/ui/views/toolbar/toolbar_view.cc b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-index 4c5c285eac..7dc6c8eaf6 100644
+index 4c5c285eac..80c1932cd8 100644
 --- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
 +++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
-@@ -139,6 +139,13 @@
+@@ -139,6 +139,14 @@
  #include "components/strings/grit/components_strings.h"
  #include "content/public/browser/render_view_host.h"
  #include "content/public/browser/web_contents.h"
@@ -39,12 +43,42 @@ index 4c5c285eac..7dc6c8eaf6 100644
 +#include "prism/ui/native/prism_browser_app_menu_button.h"
 +#include "prism/ui/native/prism_home_button.h"
 +#include "prism/ui/native/prism_navigation_button.h"
++#include "prism/ui/native/prism_navigation_rail_background.h"
 +#include "prism/ui/native/prism_reload_button.h"
 +#endif
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "ui/accessibility/ax_node_data.h"
-@@ -430,10 +437,15 @@ void ToolbarView::Init() {
+@@ -354,6 +362,10 @@ void ToolbarView::Init() {
+   // Make sure the toolbar shows by default.
+   size_animation_.Reset(1);
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  PrismNavigationRailBackground* prism_navigation_rail_background = nullptr;
++#endif
++
+   if (display_mode_ != DisplayMode::kNormal) {
+     CHECK(location_bar_view)
+         << "Alternate location bar impls need to handle this.";
+@@ -363,10 +375,17 @@ void ToolbarView::Init() {
+   }
+ 
+   if (display_mode_ == DisplayMode::kNormal) {
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    auto prism_background =
++        std::make_unique<PrismNavigationRailBackground>(*this, *browser_view_);
++    prism_navigation_rail_background = prism_background.get();
++    SetBackground(std::move(prism_background));
++#else
+     SetBackground(std::make_unique<CustomCornersBackground>(
+         *this, *browser_view_,
+         /*primary_color=*/CustomCornersBackground::ToolbarTheme(),
+         /*corner_color=*/CustomCornersBackground::FrameTheme()));
++#endif
+   } else if (display_mode_ == DisplayMode::kCustomTab) {
+     custom_tab_bar_ =
+         AddChildView(std::make_unique<CustomTabBarView>(browser_view_, this));
+@@ -430,10 +449,15 @@ void ToolbarView::Init() {
  
    // Always add children in order from left to right, for accessibility.
    if (!features::IsWebUIBackForwardButtonEnabled()) {
@@ -62,7 +96,7 @@ index 4c5c285eac..7dc6c8eaf6 100644
          BackForwardButton::Direction::kForward,
          base::BindRepeating(callback, browser_, IDC_FORWARD), browser_));
    }
-@@ -452,14 +464,24 @@ void ToolbarView::Init() {
+@@ -452,14 +476,30 @@ void ToolbarView::Init() {
    if (!features::IsWebUIReloadButtonEnabled() ||
        base::FeatureList::IsEnabled(
            features::kWebUIToolbarProcessOverheadExperiment)) {
@@ -78,6 +112,12 @@ index 4c5c285eac..7dc6c8eaf6 100644
          InitialWebUIWindowMetricsManager::From(browser_)));
    }
  
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if (prism_navigation_rail_background) {
++    prism_navigation_rail_background->SetButtons(back_, forward_, reload_);
++  }
++#endif
++
    if (!features::IsWebUIHomeButtonEnabled()) {
 -    home_ = AddChildView(std::make_unique<HomeButton>(
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
@@ -89,7 +129,7 @@ index 4c5c285eac..7dc6c8eaf6 100644
          browser_, base::BindRepeating(callback, browser_, IDC_HOME)));
    }
  
-@@ -610,7 +632,12 @@ void ToolbarView::Init() {
+@@ -610,7 +650,12 @@ void ToolbarView::Init() {
    }
  
    if (!features::IsWebUIAvatarButtonEnabled()) {
@@ -103,7 +143,7 @@ index 4c5c285eac..7dc6c8eaf6 100644
      bool show_avatar_toolbar_button =
          AvatarToolbarButtonInterface::CanShowForProfile(browser_->GetProfile());
      avatar_->SetVisible(show_avatar_toolbar_button);
-@@ -627,7 +654,12 @@ void ToolbarView::Init() {
+@@ -627,7 +672,12 @@ void ToolbarView::Init() {
    // WebUI app menu button handles these internally, so no need to set these
    // properties here, and the control is added as part of the WebUI toolbar.
    if (!features::IsWebUIAppMenuButtonEnabled()) {

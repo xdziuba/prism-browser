@@ -30,6 +30,11 @@ Implement the shell in these reviewable slices:
    custom controls. Treat platform-specific blur as a separate verified
    enhancement, never as a precondition for legibility.
 
+The first navigation-layout slice is recorded in
+`docs/design/native-navigation-rail.md`: Back, Forward and Reload/Stop now
+share a Prism-owned native rail while keeping separate actions. The editable
+omnibox and overflow behavior still use Chromium's model and layout.
+
 The style is restrained cool glass: an opaque Linux fallback, a lighter
 raised control fill, one edge highlight, and clear focus. The Apple Design
 Skill supplies hierarchy, immediate feedback, and spatial consistency; the

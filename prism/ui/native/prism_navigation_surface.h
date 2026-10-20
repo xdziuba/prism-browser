@@ -10,6 +10,7 @@ class Canvas;
 // Paints the inset Prism control surface behind a toolbar icon. Other themes
 // and forced colors retain their native background and focus treatment.
 void PaintPrismNavigationSurface(const ToolbarButton& button,
-                                 gfx::Canvas* canvas);
+                                 gfx::Canvas* canvas,
+                                 bool in_navigation_rail = false);
 
 #endif  // PRISM_UI_NATIVE_PRISM_NAVIGATION_SURFACE_H_

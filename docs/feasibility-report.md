@@ -1,6 +1,6 @@
 # Phase 0 feasibility report
 
-Updated: 2026-10-19. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
+Updated: 2026-10-20. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
 
 ## Current environment
 
@@ -828,6 +828,43 @@ Windows rendering, non-Prism panel visual regression, touch, RTL, assistive
 announcements, and platform blur remain **unverified**. The independent
 Windows build, real Store version update, and live OpenAI API call remain
 Phase 0 gates.
+
+### Prism native navigation rail — 2026-10-20
+
+`docs/design/native-navigation-rail.md` records a Prism-owned shared surface
+behind the existing Back, Forward and Reload/Stop controls. The corner-aware
+background subclass and painter live under `prism/ui/native/`; the controls
+retain separate hit regions, callbacks, menus, accessible names, focus and
+hover/press feedback. A hidden Forward button leaves no empty slot. The rail
+is opaque in Prism dark/light palettes; forced contrast and custom themes
+retain native painting. Patch `0013` adds one guarded background selection and
+four GN source entries; the upstream inventory records both changed files.
+
+An initial public-header approach was interrupted before its several-thousand
+dependent C++ compiles finished. The background-subclass approach compiled
+after fixing a private-getter call by registering the existing button pointers
+at construction. `gn gen` generated 36,683 targets, `gn check` passed for the
+toolbar target, and the final `autoninja -j1 ... chrome` passed in 51.30
+seconds with ten steps. The checker reported all 19 patches already applied.
+The isolated X11 server used a 1.05 MiB user-local `Xvfb` package whose
+SHA-256 matched the host's package database; no system package or repository
+dependency was added.
+
+On that isolated display, `native_navigation_button_smoke.mjs` passed real
+Back/Forward clicks and Alt+Left; `native_reload_button_smoke.mjs` passed
+Reload and Stop cancellation of a slow local response. The reviewed
+`docs/evidence/prism-navigation-rail-*-linux-20261020.png` captures cover
+dark, light, forced contrast, 700 px, hidden Forward and hover. One initial
+hidden-Forward single-tab capture showed incomplete tab paint at four seconds;
+the ten-second capture settled with normal tab paint and is the retained
+evidence. `browser_smoke.py` passed ordinary page and Prism WebUI assets,
+`devtools_f12_smoke.mjs` opened F12, and `side_panel_smoke.mjs` passed panel
+lifecycle/model persistence/Incognito exclusion on the final binary.
+
+Windows rendering, touch, RTL behavior, custom themes, compositor blur and
+assistive announcements remain **unverified**. The Windows build, actual
+Chrome Web Store version transition and live OpenAI API call remain Phase 0
+gates.
 
 ### Selected-tabs context preview — 2026-10-15
 
