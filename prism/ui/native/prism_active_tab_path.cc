@@ -6,18 +6,25 @@
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
 
-SkPath MakePrismActiveTabPath(const SkRect& bounds, const SkPoint& tab_origin,
-                              float scale, bool render_in_dips) {
-  const SkRect surface =
-      SkRect::MakeLTRB(bounds.left() + scale, bounds.top() + scale,
-                       bounds.right() - scale, bounds.bottom() - scale);
+namespace {
+
+SkPath MakePrismTabSurfacePath(const SkRect& bounds,
+                               const SkPoint& tab_origin,
+                               float scale,
+                               bool render_in_dips,
+                               float side_inset,
+                               float top_radius_dip,
+                               float bottom_radius_dip) {
+  const SkRect surface = SkRect::MakeLTRB(
+      bounds.left() + side_inset * scale, bounds.top() + scale,
+      bounds.right() - side_inset * scale, bounds.bottom() - scale);
   if (surface.isEmpty()) {
     return SkPath();
   }
 
   const float max_radius = std::min(surface.width(), surface.height()) * 0.5f;
-  const float top_radius = std::min(11.0f * scale, max_radius);
-  const float bottom_radius = std::min(8.0f * scale, max_radius);
+  const float top_radius = std::min(top_radius_dip * scale, max_radius);
+  const float bottom_radius = std::min(bottom_radius_dip * scale, max_radius);
   const SkVector radii[4] = {
       SkVector(top_radius, top_radius),
       SkVector(top_radius, top_radius),
@@ -32,4 +39,24 @@ SkPath MakePrismActiveTabPath(const SkRect& bounds, const SkPoint& tab_origin,
     path.transform(SkMatrix::Scale(1.0f / scale, 1.0f / scale));
   }
   return path.detach();
+}
+
+}  // namespace
+
+SkPath MakePrismActiveTabPath(const SkRect& bounds,
+                              const SkPoint& tab_origin,
+                              float scale,
+                              bool render_in_dips) {
+  return MakePrismTabSurfacePath(bounds, tab_origin, scale, render_in_dips,
+                                 /*side_inset=*/1.0f, /*top_radius_dip=*/11.0f,
+                                 /*bottom_radius_dip=*/8.0f);
+}
+
+SkPath MakePrismInactiveTabHighlightPath(const SkRect& bounds,
+                                         const SkPoint& tab_origin,
+                                         float scale,
+                                         bool render_in_dips) {
+  return MakePrismTabSurfacePath(bounds, tab_origin, scale, render_in_dips,
+                                 /*side_inset=*/2.0f, /*top_radius_dip=*/10.0f,
+                                 /*bottom_radius_dip=*/8.0f);
 }

@@ -55,6 +55,7 @@ try {
     await second.keyboard.press('Control+Tab');
     await third.waitForFunction(() => document.visibilityState === 'visible');
     await second.bringToFront();
+    await second.mouse.click(350, 300);
   }
   if (process.env.PRISM_NATIVE_TAB_SET !== '1' &&
       process.env.PRISM_NATIVE_FOCUS !== '1') {
@@ -67,8 +68,12 @@ try {
   const nativeHover = process.env.PRISM_NATIVE_HOVER_X;
   if (nativeClick || nativeHover) {
     const x = Number(nativeClick ?? nativeHover);
+    const y = Number(process.env.PRISM_NATIVE_ACTION_Y ?? 63);
     if (!Number.isInteger(x) || x < 0 || x >= width) {
       throw new Error('Native action X must be inside the browser window');
+    }
+    if (!Number.isInteger(y) || y < 0 || y >= 900) {
+      throw new Error('Native action Y must be inside the browser window');
     }
     const motion = spawnSync('python3', ['-c', `
 import ctypes, sys
@@ -88,15 +93,15 @@ x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 x11.XKeysymToKeycode.restype = ctypes.c_uint
 d = x11.XOpenDisplay(sys.argv[1].encode())
 if not d: raise SystemExit('XOpenDisplay failed')
-if not xtst.XTestFakeMotionEvent(d, 0, int(sys.argv[2]), 63, 0):
+if not xtst.XTestFakeMotionEvent(d, 0, int(sys.argv[2]), int(sys.argv[3]), 0):
     raise SystemExit('XTest motion failed')
 x11.XSync(d, 0)
-if sys.argv[3] == 'click':
+if sys.argv[4] == 'click':
     if not xtst.XTestFakeButtonEvent(d, 1, 1, 0): raise SystemExit('XTest press failed')
     x11.XSync(d, 0)
     if not xtst.XTestFakeButtonEvent(d, 1, 0, 0): raise SystemExit('XTest release failed')
     x11.XSync(d, 0)
-    if sys.argv[4] == 'escape':
+    if sys.argv[5] == 'escape':
         time.sleep(0.3)
         key = x11.XKeysymToKeycode(d, x11.XStringToKeysym(b'Escape'))
         if not key: raise SystemExit('Escape key mapping failed')
@@ -105,7 +110,7 @@ if sys.argv[3] == 'click':
                 raise SystemExit('XTest Escape failed')
         x11.XSync(d, 0)
 x11.XCloseDisplay(d)
-`, display, String(x), nativeClick ? 'click' : 'hover',
+`, display, String(x), String(y), nativeClick ? 'click' : 'hover',
       process.env.PRISM_NATIVE_ESCAPE_AFTER_CLICK === '1' ? 'escape' : 'keep'], { encoding: 'utf8' });
     if (motion.status !== 0) throw new Error(motion.stderr || 'XTest action failed');
   }

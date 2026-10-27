@@ -961,6 +961,41 @@ announcements and broader RTL interaction remain **unverified**. The Phase 0
 Windows build, real Store version transition and live OpenAI API call remain
 open; the SponsorBlock distribution/API and live YouTube gates are unchanged.
 
+### Prism inactive tab highlight — 2026-10-27
+
+`docs/design/native-inactive-tab-highlight.md` records a Prism-owned visual
+path for ordinary inactive tab highlights and quiet hover/secondary-selection
+colors. The 2-DIP side inset and 10/8-DIP radii keep inactive tabs related
+to the existing floating active tab without changing Chromium hit testing,
+text, close controls, separators, tab commands or special tab geometry.
+The existing Prism color-mixer guard excludes custom themes, app windows and
+forced colors. Patches `0005` and `0011` were updated on their already-tracked
+upstream files; no new Chromium file was changed.
+
+The first `-j1` Linux `chrome` build passed in 14.63 seconds (three actions).
+Visual review exposed a bright blue system hover color, so the Prism mixer
+now supplies restrained dark/light hover and selection colors. The color
+build passed in 8.94 seconds (two actions), and the final source-formatting
+build passed in 11.87 seconds (three actions). `gn check` for the horizontal
+tab target passed. The isolated X11 capture harness can now hover tab-strip
+coordinates and focuses the three-tab window before capture.
+
+Reviewed `docs/evidence/prism-inactive-tab-hover-*-linux-20261027.png`
+captures cover dark, light, forced contrast and 700 px dark. Pixel sampling
+confirmed dark hover `#31414B`, active `#2C3942`, frame `#1C2932`, and light
+hover `#ECF3F7`; the forced-contrast capture retained Chromium's system
+surface. Calculated inactive-label contrast on the new hover surfaces is
+7.05:1 dark and 6.25:1 light. A separate 400 px three-tab inspection found
+the favicons and close controls still inside their tabs. Xvfb intermittently
+left full-window captures unpainted; only reviewed captures were retained.
+Native New Tab and close clicks, ordinary-page/Prism WebUI, F12 and AI panel
+smokes passed after both the color build and the final formatting build.
+
+Windows, custom themes beyond the guarded fallback, pinned/grouped/split/
+vertical tabs, drag transitions, touch and screen-reader behavior remain
+**unverified**. Phase 0's Windows build, actual Store version transition and
+live OpenAI API call remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

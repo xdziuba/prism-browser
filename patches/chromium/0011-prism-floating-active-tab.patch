@@ -17,7 +17,7 @@ index 75e30c9bca..415169e916 100644
      "//base:i18n",
      "//cc/paint",
 diff --git a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
-index 5e8bf7705c..cd802954ee 100644
+index 5e8bf7705c..3baab02a68 100644
 --- a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 +++ b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 @@ -11,6 +11,7 @@
@@ -38,17 +38,18 @@ index 5e8bf7705c..cd802954ee 100644
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "third_party/skia/include/core/SkRRect.h"
-@@ -88,9 +92,33 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+@@ -88,9 +92,42 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
                                     tab_style()->GetSeparatorSize().width()) *
                                    scale;
  
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-+  // Keep the upstream hit path and special tab geometries. A Prism active tab
-+  // uses the existing detached highlight silhouette as its material surface.
-+  const bool paint_active_path = path_type == TabStyle::PathType::kActiveTab ||
-+                                 path_type == TabStyle::PathType::kBorder;
++  // Keep the upstream hit path and special tab geometries. Prism's ordinary
++  // active body and inactive highlight use detached material surfaces.
++  const bool paint_prism_path = path_type == TabStyle::PathType::kActiveTab ||
++                                path_type == TabStyle::PathType::kBorder ||
++                                path_type == TabStyle::PathType::kHighlight;
 +  const auto* color_provider =
-+      paint_active_path ? delegate_->GetView()->GetColorProvider() : nullptr;
++      paint_prism_path ? delegate_->GetView()->GetColorProvider() : nullptr;
 +  const SkColor active_background =
 +      color_provider
 +          ? color_provider->GetColor(kColorTabBackgroundActiveFrameActive)
@@ -56,14 +57,22 @@ index 5e8bf7705c..cd802954ee 100644
 +  const bool prism_surface =
 +      active_background == SkColorSetRGB(0x2C, 0x39, 0x42) ||
 +      active_background == SkColorSetRGB(0xF5, 0xF9, 0xFB);
-+  const bool floating_active_tab =
-+      prism_surface && delegate_->IsActive() && !delegate_->IsPinned() &&
-+      !delegate_->IsSplit() && !delegate_->GetGroup().has_value() &&
-+      !delegate_->IsClosing() && !delegate_->IsDragging() &&
++  const bool prism_ordinary_tab =
++      prism_surface && !delegate_->IsPinned() && !delegate_->IsSplit() &&
++      !delegate_->GetGroup().has_value() && !delegate_->IsClosing() &&
++      !delegate_->IsDragging() &&
 +      !delegate_->GetView()->GetThemeProvider()->HasCustomImage(
 +          IDR_THEME_TOOLBAR);
++  const bool floating_active_tab =
++      prism_ordinary_tab && delegate_->IsActive() &&
++      (path_type == TabStyle::PathType::kActiveTab ||
++       path_type == TabStyle::PathType::kBorder);
++  const bool floating_inactive_highlight =
++      prism_ordinary_tab && !delegate_->IsActive() &&
++      path_type == TabStyle::PathType::kHighlight;
 +#else
 +  const bool floating_active_tab = false;
++  const bool floating_inactive_highlight = false;
 +#endif
 +
    // Selected, hover, and inactive tab fills are a detached squarcle tab.
@@ -73,18 +82,23 @@ index 5e8bf7705c..cd802954ee 100644
      float top_left_corner_radius = content_corner_radius;
      float top_right_corner_radius = content_corner_radius;
      float bottom_left_corner_radius = content_corner_radius;
-@@ -164,6 +192,17 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+@@ -164,6 +201,22 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
        }
      }
  
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-+    if (floating_active_tab) {
++    if (floating_active_tab || floating_inactive_highlight) {
 +      gfx::PointF origin(delegate_->GetView()->origin());
 +      origin.Scale(scale);
-+      return MakePrismActiveTabPath(
-+          SkRect::MakeLTRB(left, top, right, bottom),
-+          SkPoint::Make(origin.x(), origin.y()), scale,
-+          flags.render_units == TabStyle::RenderUnits::kDips);
++      const SkRect bounds = SkRect::MakeLTRB(left, top, right, bottom);
++      const SkPoint tab_origin(origin.x(), origin.y());
++      const bool render_in_dips =
++          flags.render_units == TabStyle::RenderUnits::kDips;
++      return floating_active_tab
++                 ? MakePrismActiveTabPath(bounds, tab_origin, scale,
++                                          render_in_dips)
++                 : MakePrismInactiveTabHighlightPath(bounds, tab_origin, scale,
++                                                     render_in_dips);
 +    }
 +#endif
 +
