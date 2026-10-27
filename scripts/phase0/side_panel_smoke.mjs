@@ -168,9 +168,9 @@ try {
       await panel.evaluate("document.querySelector('#api-key').value") !== '') {
     throw new Error('Reopened panel retained a live session or key');
   }
-  if (await panel.evaluate("document.querySelector('#model').value") !== 'prism-panel-model') {
-    throw new Error('Panel model setting did not survive reopening');
-  }
+  await waitFor(() => panel.evaluate(
+    "document.querySelector('#model').value === 'prism-panel-model'"),
+  'saved model to load in the reopened panel');
   await page.locator('#open-side-panel').click();
   await waitFor(async () => !(await targets(port)).some(item =>
     item.url.startsWith('chrome://prism-ai-panel/')), 'native panel to close');

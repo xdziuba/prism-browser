@@ -928,6 +928,39 @@ touch, OS theme changes and screen-reader behavior remain **unverified**.
 The independent Phase 0 Windows build, actual Store version transition and
 live OpenAI API call remain open.
 
+### Prism overflow menu navigation icons — 2026-10-27
+
+`docs/design/native-overflow-menu-icons.md` records a shared original Prism
+Back/Forward/Home vector header. Patch `0020-prism-overflow-menu-icons.patch`
+changes only `overflow_menu.cc`: the responsive Forward and Home rows reuse
+those vectors on Linux/Windows, with the Forward arrow pointing left in RTL.
+Chromium still owns the rows, ordering, enablement, callbacks, menu surface
+and accessibility semantics.
+
+GN generation made 36,683 targets and toolbar `gn check` passed. The pinned
+Linux `chrome` target built with `autoninja -j1` in 24.20 seconds (four
+actions); after correcting RTL direction and formatting the row selection,
+the final incremental build passed in 18.35 seconds (two actions). On
+isolated X11 at 520 px,
+`native_overflow_menu_navigation_smoke.mjs` clicked the actual responsive
+Forward row after a history Back and observed the second page, then clicked
+Home and observed the new-tab page. It passed again on the final binary.
+Existing native toolbar navigation and Home smokes, ordinary-page/Prism
+WebUI, and F12/DevTools passed. The panel smoke initially read the saved
+model before its reopened page had finished restoring it; an immediate rerun
+passed, and its assertion now waits for the settled value. The updated panel
+smoke passed on the final binary.
+
+Reviewed `docs/evidence/prism-overflow-menu-icons-*-linux-20261027.png`
+captures show the real menu at 500 px in dark, light, forced-contrast and
+RTL modes. The first RTL capture exposed an incorrectly right-pointing
+Forward arrow; the retained RTL capture is after the fix. Xvfb sometimes
+left page content outside the menu unpainted, so these images establish
+the visible browser chrome and menu only. Windows, touch, screen-reader
+announcements and broader RTL interaction remain **unverified**. The Phase 0
+Windows build, real Store version transition and live OpenAI API call remain
+open; the SponsorBlock distribution/API and live YouTube gates are unchanged.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
