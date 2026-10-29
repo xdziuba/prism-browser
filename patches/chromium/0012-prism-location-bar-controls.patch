@@ -1,19 +1,22 @@
 diff --git a/chrome/browser/ui/views/location_bar/BUILD.gn b/chrome/browser/ui/views/location_bar/BUILD.gn
-index e7ede245ff..8b2a310ec1 100644
+index e7ede245ff..338a2808e4 100644
 --- a/chrome/browser/ui/views/location_bar/BUILD.gn
 +++ b/chrome/browser/ui/views/location_bar/BUILD.gn
-@@ -108,6 +108,10 @@ source_set("impl") {
+@@ -108,6 +108,13 @@ source_set("impl") {
        "zoom_bubble_view.cc",
      ]
  
 +    if (is_linux || is_win) {
-+      sources += [ "//prism/ui/native/prism_omnibox_icons.h" ]
++      sources += [
++        "//prism/ui/native/prism_omnibox_icons.h",
++        "//prism/ui/native/prism_page_state_icons.h",
++      ]
 +    }
 +
      public_deps = [ "//chrome/browser:browser_public_dependencies" ]
  
      deps += [
-@@ -207,6 +211,14 @@ source_set("impl") {
+@@ -207,6 +214,14 @@ source_set("impl") {
        "//ui/native_theme",
        "//ui/strings:ui_strings_grit",
      ]
@@ -29,21 +32,22 @@ index e7ede245ff..8b2a310ec1 100644
        deps += [ "//chrome/browser/ui:fullscreen_util_mac" ]
      }
 diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-index f6a4fded22..c7fac1e1d2 100644
+index f6a4fded22..500ee599b7 100644
 --- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
 +++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
-@@ -95,6 +95,10 @@
+@@ -95,6 +95,11 @@
  #include "chrome/common/chrome_features.h"
  #include "chrome/grit/generated_resources.h"
  #include "chrome/grit/omnibox_popup_resources.h"
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 +#include "prism/ui/native/prism_location_icon_view.h"
 +#include "prism/ui/native/prism_omnibox_clear_button.h"
++#include "prism/ui/native/prism_page_state_icons.h"
 +#endif
  #include "components/commerce/core/commerce_feature_list.h"
  #include "components/content_settings/core/browser/host_content_settings_map.h"
  #include "components/content_settings/core/common/features.h"
-@@ -121,6 +125,9 @@
+@@ -121,6 +126,9 @@
  #include "content/public/browser/render_widget_host_view.h"
  #include "content/public/browser/web_contents.h"
  #include "content/public/browser/web_contents_observer.h"
@@ -53,7 +57,15 @@ index f6a4fded22..c7fac1e1d2 100644
  #include "services/device/public/cpp/device_features.h"
  #include "third_party/metrics_proto/omnibox_event.pb.h"
  #include "third_party/skia/include/core/SkColor.h"
-@@ -340,8 +347,19 @@ void LocationBarView::Init() {
+@@ -147,6 +155,7 @@
+ #include "ui/gfx/text_utils.h"
+ #include "ui/gfx/vector_icon_types.h"
+ #include "ui/menus/simple_menu_model.h"
++#include "ui/native_theme/native_theme.h"
+ #include "ui/views/accessibility/view_accessibility.h"
+ #include "ui/views/background.h"
+ #include "ui/views/border.h"
+@@ -340,8 +349,19 @@ void LocationBarView::Init() {
    const gfx::FontList& page_action_font_list = typography_provider.GetFont(
        CONTEXT_OMNIBOX_PRIMARY, views::style::STYLE_BODY_3_EMPHASIS);
  
@@ -73,7 +85,7 @@ index f6a4fded22..c7fac1e1d2 100644
    location_icon_view->set_drag_controller(this);
    location_icon_view_ = AddChildView(std::move(location_icon_view));
  
-@@ -502,10 +520,17 @@ void LocationBarView::Init() {
+@@ -502,10 +522,17 @@ void LocationBarView::Init() {
            page_action_items, page_actions::PageActionPropertiesProvider(),
            page_action_params));
  
@@ -93,7 +105,7 @@ index f6a4fded22..c7fac1e1d2 100644
    clear_all_button->SetTooltipText(
        l10n_util::GetStringUTF16(IDS_OMNIBOX_CLEAR_ALL));
    clear_all_button_ = AddChildView(std::move(clear_all_button));
-@@ -1427,6 +1452,13 @@ void LocationBarView::RefreshBackground() {
+@@ -1427,6 +1454,13 @@ void LocationBarView::RefreshBackground() {
    }
  
    SkColor border_color = SK_ColorTRANSPARENT;
@@ -107,7 +119,7 @@ index f6a4fded22..c7fac1e1d2 100644
    if (high_contrast) {
      // High contrast schemes get a border stroke even on a rounded omnibox.
      border_color =
-@@ -1438,6 +1470,16 @@ void LocationBarView::RefreshBackground() {
+@@ -1438,6 +1472,16 @@ void LocationBarView::RefreshBackground() {
      // but still contains in-progress user input, a unique border color will be
      // applied.
      border_color = color_provider->GetColor(kColorLocationBarBorderOnMismatch);
@@ -124,7 +136,7 @@ index f6a4fded22..c7fac1e1d2 100644
    }
  
    if (is_popup_mode_) {
-@@ -1558,12 +1600,19 @@ void LocationBarView::RefreshPageActionContainerViewAndIconsVisibility(
+@@ -1558,12 +1602,19 @@ void LocationBarView::RefreshPageActionContainerViewAndIconsVisibility(
  
  void LocationBarView::RefreshClearAllButtonIcon() {
    const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
@@ -144,7 +156,7 @@ index f6a4fded22..c7fac1e1d2 100644
    SetImageFromVectorIconWithColor(
        clear_all_button_, icon,
        {kColorLocationBarClearAllButtonIcon,
-@@ -2058,11 +2107,17 @@ void LocationBarView::OnChanged() {
+@@ -2058,11 +2109,17 @@ void LocationBarView::OnChanged() {
  
    location_icon_view_->Update(
        /*suppress_animations=*/false, GetOmniboxController()->IsPopupOpen());
@@ -163,7 +175,34 @@ index f6a4fded22..c7fac1e1d2 100644
  
    InvalidateLayout();
    SchedulePaint();
-@@ -2458,7 +2513,6 @@ void LocationBarView::OnAppShimChanged(const webapps::AppId& app_id) {
+@@ -2352,6 +2409,26 @@ ui::ImageModel LocationBarView::GetLocationIcon(
+     return GetOmniboxController()->edit_model()->GetAddContextIcon(dip_size);
+   }
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const ui::ColorProvider* colors = GetColorProvider();
++  const LocationBarModel* model = GetLocationBarModel();
++  if (browser_ && browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
++      !is_popup_mode_ && omnibox_view_ && location_icon_view_ && colors &&
++      model &&
++      GetOmniboxController()->edit_model()->ShouldShowCurrentPageIcon() &&
++      model->GetSecurityLevel() == security_state::WARNING &&
++      GetNativeTheme()->preferred_contrast() !=
++          ui::NativeTheme::PreferredContrast::kMore) {
++    const SkColor toolbar = colors->GetColor(kColorToolbar);
++    if (toolbar == SkColorSetRGB(0x2C, 0x39, 0x42) ||
++        toolbar == SkColorSetRGB(0xF5, 0xF9, 0xFB)) {
++      return ui::ImageModel::FromVectorIcon(
++          prism::kPageWarningIcon, location_icon_view_->GetForegroundColor(),
++          dip_size);
++    }
++  }
++#endif
++
+   return omnibox_view_
+              ? omnibox_view_->GetIcon(
+                    dip_size, location_icon_view_->GetForegroundColor(),
+@@ -2458,7 +2535,6 @@ void LocationBarView::OnAppShimChanged(const webapps::AppId& app_id) {
  }
  #endif
  

@@ -1,6 +1,6 @@
 # Phase 0 feasibility report
 
-Updated: 2026-10-20. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
+Updated: 2026-10-29. Baseline: Chromium `d5556885f34d231a63b3138269bc245aa6f6a408`, `depot_tools` `3de62e5b4fe72ecae5eff72356d0527eccb3b8c0`.
 
 ## Current environment
 
@@ -1033,6 +1033,35 @@ touch, actual HTTPS security transitions, screen-reader announcements and
 the remaining complete native-chrome redesign stay **unverified**. The
 independent Windows build, real Store update and live OpenAI API gates remain
 open.
+
+### Prism warning icon in the page-info chip — 2026-10-29
+
+`docs/design/native-page-state-icon.md` records a narrow replacement for the
+warning glyph in an ordinary Linux/Windows Prism page-info chip. The original
+Prism vector is selected only when Chromium reports the current page at its
+`WARNING` security level and the normal Prism palette is active. Dangerous
+and other states, editing/search icons, custom themes, and forced contrast
+retain Chromium's icon path. The native page-info action and label remain
+Chromium-owned. Patch `0012` was regenerated because it already owns the two
+changed location-bar files; the idempotent checker reports all 18 current
+patches applied to the pinned checkout.
+
+GN generated 36,683 targets, `gn check` passed for the location-bar target,
+and the single-job Linux `chrome` target compiled and linked in 31.97 seconds
+with two actions. On isolated X11 display `:101`, the updated captures are
+`docs/evidence/prism-page-warning-{dark,light,forced,bubble}-linux-20261029.png`.
+Compared with the preceding page-info-chip binary, the warning glyph changed
+89 pixels in dark mode and 87 in light mode, all within screen coordinates
+`(130, 56)`–`(145, 68)`; the localized label changed zero pixels. The
+forced-contrast top bar changed zero pixels. The bubble capture shows the
+native page-info bubble after an X11 click. `browser_smoke.py` passed an
+ordinary page and `chrome://prism-ai/`; `devtools_f12_smoke.mjs` passed after
+the isolated X server was restarted; `native_omnibox_clear_smoke.mjs` passed.
+The first F12 invocation failed because the prior Xvfb session had ended,
+before the browser could initialize; the restarted display and final test
+passed. No real certificate-danger or Safe Browsing state was exercised.
+Windows, OS-driven contrast, custom themes, touch, screen-reader behavior,
+the real Store version transition, and live OpenAI API remain unverified.
 
 ### Selected-tabs context preview — 2026-10-15
 
