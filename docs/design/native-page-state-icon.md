@@ -40,6 +40,10 @@ to the preceding build, confirming the fallback path for that capture. A
 native X11 click still opened the Chromium page-info bubble, and ordinary
 page/WebUI, F12 and omnibox Clear all smoke tests passed on the linked binary.
 
-The captured `data:` page exercised the displayed warning state. A dangerous
-certificate or Safe Browsing interstitial, OS-driven contrast, custom themes,
-Windows, touch, and screen-reader announcements remain unverified.
+The captured `data:` page exercised the displayed warning state. A separate
+local self-signed HTTPS fixture was opened after Chromium's certificate
+interstitial. CDP reported `insecure-broken`, and the reviewed browser-chrome
+capture showed Chromium's red dangerous chip and crossed icon rather than the
+Prism warning triangle. The test certificate and browser profile were deleted.
+Safe Browsing danger, OS-driven contrast, custom themes, Windows, touch, and
+screen-reader announcements remain unverified.

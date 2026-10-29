@@ -1059,9 +1059,19 @@ ordinary page and `chrome://prism-ai/`; `devtools_f12_smoke.mjs` passed after
 the isolated X server was restarted; `native_omnibox_clear_smoke.mjs` passed.
 The first F12 invocation failed because the prior Xvfb session had ended,
 before the browser could initialize; the restarted display and final test
-passed. No real certificate-danger or Safe Browsing state was exercised.
-Windows, OS-driven contrast, custom themes, touch, screen-reader behavior,
-the real Store version transition, and live OpenAI API remain unverified.
+passed.
+
+`scripts/phase0/native_dangerous_page_smoke.mjs` then generated a disposable
+self-signed certificate, served local HTTPS, opened Chromium's certificate
+interstitial, and proceeded to the page in a temporary profile. The final CDP
+visible security state was `insecure-broken`; the reviewed
+`docs/evidence/prism-dangerous-cert-linux-20261029.png` shows the red
+`Niezabezpieczona` chip with Chromium's crossed danger icon and a struck
+through HTTPS scheme. The certificate, private key and profile were deleted
+by the test. This verifies the invalid-certificate override path on Linux,
+not Safe Browsing or a valid HTTPS transition. Windows, OS-driven contrast,
+custom themes, touch, screen-reader behavior, the real Store version
+transition, and live OpenAI API remain unverified.
 
 ### Selected-tabs context preview — 2026-10-15
 
