@@ -1073,6 +1073,47 @@ not Safe Browsing or a valid HTTPS transition. Windows, OS-driven contrast,
 custom themes, touch, screen-reader behavior, the real Store version
 transition, and live OpenAI API remain unverified.
 
+### Prism native tab audio indicator — 2026-10-29
+
+`docs/design/native-tab-audio-indicator.md` records a Prism-owned speaker and
+muted-speaker vector for ordinary Linux/Windows tabs, plus an inset audio
+button hover/press surface. Chromium still owns the alert lifecycle, mute
+permission, event dispatch, accessible name, tooltip, and non-audio alert
+states. The pinned `EnableTabMuting` feature remains disabled by default.
+Patch `0015` was updated on its existing tab files and now also covers
+`chrome/browser/ui/views/tabs/tab/BUILD.gn` and
+`alert_indicator_button.cc`; no public Chromium header changed in the final
+implementation. A fresh temporary Git index successfully applied patch
+`0014` followed by `0015`, confirming no duplicate New Tab hunks.
+
+GN generated 36,683 targets, both affected GN targets passed `gn check`, and
+their C++ targets compiled. The final single-job pinned Linux `chrome` build
+passed in 31.25 seconds with two actions after the temporary public-header
+experiment was reverted byte for byte. The patch checker reports all 18
+current patches already applied. `clang-format --dry-run --Werror`,
+`node --check`, and `git diff --check` passed for the touched sources.
+
+On isolated X11 display `:101`, a user-gesture Web Audio oscillator exposed
+the tab's audible state. With `EnableTabMuting` enabled only for this test,
+an X11 click on the native indicator changed the visible glyph from speaker
+to muted speaker in dark, light, and forced-contrast captures. The reviewed
+evidence is `docs/evidence/prism-tab-audio-{before-click-dark,muted-dark,light,muted-light,forced-contrast,muted-forced-contrast}-linux-20261029.png`.
+Forced contrast kept Chromium's system appearance. A separate disposable
+profile without the feature flag left the audible glyph unchanged after the
+same click, recorded in `prism-tab-audio-default-{before,after}-linux-20261029.png`.
+The first test used an incorrect `TabMuting` flag name; it did not toggle;
+the final smoke uses Chromium's `EnableTabMuting` feature name. The test
+script captures before/after images and the visual state was reviewed; it
+does not yet assert the mute state through a browser API.
+
+`browser_smoke.py` passed the ordinary page and Prism WebUI,
+`devtools_f12_smoke.mjs` opened standard DevTools, and the native tab-close
+smoke passed on the final binary.
+Windows, custom themes, inactive/narrow tabs, touch and screen-reader
+behavior remain **unverified**. The independent Windows build, actual Store
+version transition, live OpenAI API call, and SponsorBlock distribution/API
+gates remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

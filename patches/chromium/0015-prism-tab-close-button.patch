@@ -1,13 +1,15 @@
 diff --git a/chrome/browser/ui/views/tabs/BUILD.gn b/chrome/browser/ui/views/tabs/BUILD.gn
-index 6b2b1298e3..5d5e015a10 100644
+index 6b2b1298e3..3d1a8ccdeb 100644
 --- a/chrome/browser/ui/views/tabs/BUILD.gn
 +++ b/chrome/browser/ui/views/tabs/BUILD.gn
-@@ -264,6 +264,13 @@ source_set("tab") {
+@@ -264,6 +264,15 @@ source_set("tab") {
  source_set("tab_impl") {
    sources = [ "tab.cc" ]
  
 +  if (is_linux || is_win) {
 +    sources += [
++      "//prism/ui/native/prism_tab_audio_button.cc",
++      "//prism/ui/native/prism_tab_audio_button.h",
 +      "//prism/ui/native/prism_tab_close_button.cc",
 +      "//prism/ui/native/prism_tab_close_button.h",
 +    ]
@@ -16,7 +18,7 @@ index 6b2b1298e3..5d5e015a10 100644
    deps = [
      ":base",
      ":tab",
-@@ -308,6 +315,10 @@ source_set("tab_impl") {
+@@ -308,6 +317,10 @@ source_set("tab_impl") {
      "//ui/views",
    ]
  
@@ -28,21 +30,46 @@ index 6b2b1298e3..5d5e015a10 100644
      deps += [ "//chrome/browser/ash/boca/on_task" ]
    }
 diff --git a/chrome/browser/ui/views/tabs/tab.cc b/chrome/browser/ui/views/tabs/tab.cc
-index 7a77fc7f0b..4868cd79a1 100644
+index 7a77fc7f0b..927b62eda6 100644
 --- a/chrome/browser/ui/views/tabs/tab.cc
 +++ b/chrome/browser/ui/views/tabs/tab.cc
-@@ -92,6 +92,10 @@
+@@ -92,6 +92,11 @@
  #include "ui/views/widget/tooltip_manager.h"
  #include "ui/views/widget/widget.h"
  
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_tab_audio_button.h"
 +#include "prism/ui/native/prism_tab_close_button.h"
 +#endif
 +
  #if BUILDFLAG(IS_WIN)
  #include "ui/views/win/pen_event_handler_util.h"
  #endif
-@@ -392,10 +396,28 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
+@@ -365,12 +370,20 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
+ 
+   icon_ = AddChildView(std::make_unique<TabIcon>());
+ 
+-  alert_indicator_button_ =
+-      AddChildView(std::make_unique<AlertIndicatorButton>(this));
+-
+   BrowserWindowInterface* const browser_window_interface =
+       controller_->GetBrowserWindowInterface();
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  alert_indicator_button_ =
++      browser_window_interface && browser_window_interface->GetType() ==
++                                      BrowserWindowInterface::TYPE_NORMAL
++          ? AddChildView(std::make_unique<PrismTabAudioButton>(this))
++          : AddChildView(std::make_unique<AlertIndicatorButton>(this));
++#else
++  alert_indicator_button_ =
++      AddChildView(std::make_unique<AlertIndicatorButton>(this));
++#endif
++
+   bool should_create_underline = false;
+   if (browser_window_interface) {
+     Profile* profile = browser_window_interface->GetProfile();
+@@ -392,10 +405,27 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
  
    // Unretained is safe here because this class outlives its close button, and
    // the controller outlives this Tab.
@@ -52,9 +79,8 @@ index 7a77fc7f0b..4868cd79a1 100644
 -                          base::Unretained(controller_))));
 +#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 +  const bool use_prism_close_button =
-+      browser_window_interface &&
-+      browser_window_interface->GetType() ==
-+          BrowserWindowInterface::Type::TYPE_NORMAL;
++      browser_window_interface && browser_window_interface->GetType() ==
++                                      BrowserWindowInterface::Type::TYPE_NORMAL;
 +#endif
 +  auto close_callback =
 +      base::BindRepeating(&Tab::CloseButtonPressed, base::Unretained(this));
@@ -68,13 +94,113 @@ index 7a77fc7f0b..4868cd79a1 100644
 +  }
 +#endif
 +  if (!close_button) {
-+    close_button = std::make_unique<TabCloseButton>(
-+        std::move(close_callback), std::move(mouse_callback));
++    close_button = std::make_unique<TabCloseButton>(std::move(close_callback),
++                                                    std::move(mouse_callback));
 +  }
 +  close_button_ = AddChildView(std::move(close_button));
  
    // This will cause calls to GetContentsBounds to return only the rectangle
    // inside the tab shape, rather than to its extents.
+diff --git a/chrome/browser/ui/views/tabs/tab/BUILD.gn b/chrome/browser/ui/views/tabs/tab/BUILD.gn
+index 39afe45097..41ac1a524c 100644
+--- a/chrome/browser/ui/views/tabs/tab/BUILD.gn
++++ b/chrome/browser/ui/views/tabs/tab/BUILD.gn
+@@ -47,6 +47,10 @@ source_set("impl") {
+     "tab_title.cc",
+   ]
+ 
++  if (is_linux || is_win) {
++    sources += [ "//prism/ui/native/prism_tab_audio_icons.h" ]
++  }
++
+   deps = [
+     ":tab",
+     "//chrome/app/vector_icons",
+@@ -80,6 +84,10 @@ source_set("impl") {
+     "//ui/views",
+   ]
+ 
++  if (is_linux || is_win) {
++    deps += [ "//ui/color" ]
++  }
++
+   if (enable_extensions_core) {
+     deps += [ "//chrome/browser/extensions" ]
+   }
+diff --git a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+index 37d8bb79f3..4d93f31a02 100644
+--- a/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/alert_indicator_button.cc
+@@ -10,9 +10,11 @@
+ #include "base/memory/raw_ptr.h"
+ #include "base/metrics/user_metrics.h"
+ #include "base/time/time.h"
++#include "build/build_config.h"
+ #include "cc/paint/skottie_wrapper.h"
+ #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
+ #include "chrome/browser/ui/browser_element_identifiers.h"
++#include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/browser/ui/tabs/alert/tab_alert_icon.h"
+ #include "chrome/browser/ui/views/tabs/tab.h"
+ #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
+@@ -20,9 +22,12 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "components/tabs/public/tab_alert.h"
+ #include "media/base/media_switches.h"
++#include "third_party/skia/include/core/SkColor.h"
+ #include "ui/base/l10n/l10n_util.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/base/resource/resource_bundle.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_provider.h"
+ #include "ui/compositor/layer.h"
+ #include "ui/gfx/animation/multi_animation.h"
+ #include "ui/gfx/canvas.h"
+@@ -34,6 +39,9 @@
+ #include "ui/views/controls/animated_image_view.h"
+ #include "ui/views/view_class_properties.h"
+ #include "ui/views/widget/widget.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_tab_audio_icons.h"
++#endif
+ 
+ namespace {
+ 
+@@ -518,12 +526,31 @@ void AlertIndicatorButton::UpdateIconForAlertState(tabs::TabAlert state) {
+           ? tabs::GetAlertIndicatorColor(state, delegate_->IsApparentlyActive(),
+                                          GetWidget()->ShouldPaintAsActive())
+           : gfx::kPlaceholderColor;
+-  const ui::ImageModel indicator_image = tabs::GetAlertImageModel(state, color);
++  ui::ImageModel indicator_image = tabs::GetAlertImageModel(state, color);
++  ui::ImageModel pressed_image =
++      GetTabAlertIndicatorImageForPressedState(state, color);
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  if ((state == tabs::TabAlert::kAudioPlaying ||
++       state == tabs::TabAlert::kAudioMuting) &&
++      GetColorProvider()) {
++    const SkColor frame = GetColorProvider()->GetColor(ui::kColorFrameActive);
++    if (frame == SkColorSetRGB(0x1C, 0x29, 0x32) ||
++        frame == SkColorSetRGB(0xE2, 0xEB, 0xF0)) {
++      const gfx::VectorIcon& icon = state == tabs::TabAlert::kAudioPlaying
++                                        ? prism::kTabAudioPlayingIcon
++                                        : prism::kTabAudioMutedIcon;
++      indicator_image = ui::ImageModel::FromVectorIcon(
++          icon, color,
++          GetLayoutConstant(LayoutConstant::kTabAlertIndicatorIconWidth));
++      pressed_image = indicator_image;
++    }
++  }
++#endif
+ 
+   SetImageModel(views::Button::STATE_NORMAL, indicator_image);
+   SetImageModel(views::Button::STATE_DISABLED, indicator_image);
+-  SetImageModel(views::Button::STATE_PRESSED,
+-                GetTabAlertIndicatorImageForPressedState(state, color));
++  SetImageModel(views::Button::STATE_HOVERED, indicator_image);
++  SetImageModel(views::Button::STATE_PRESSED, pressed_image);
+ }
+ 
+ BEGIN_METADATA(AlertIndicatorButton)
 diff --git a/chrome/browser/ui/views/tabs/tab/tab_close_button.h b/chrome/browser/ui/views/tabs/tab/tab_close_button.h
 index 957cc621a6..6353cff72e 100644
 --- a/chrome/browser/ui/views/tabs/tab/tab_close_button.h
