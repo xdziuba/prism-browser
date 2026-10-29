@@ -996,6 +996,44 @@ vertical tabs, drag transitions, touch and screen-reader behavior remain
 **unverified**. Phase 0's Windows build, actual Store version transition and
 live OpenAI API call remain open.
 
+### Prism page-info chip — 2026-10-27
+
+`docs/design/native-page-info-chip.md` records an original Prism visual
+component around Chromium's page-state icon and label. The ordinary
+Linux/Windows chip receives a nine-DIP corner shape, an opaque cool fill, a
+boundary and a restrained upper light line. Security level, localized text,
+click action, native page-info bubble, tooltip, focus and accessibility
+semantics remain Chromium-owned. The Prism painter skips dangerous-state and
+hidden backgrounds; forced contrast and non-Prism themes use the upstream
+appearance. The chip paints its own fill without changing other omnibox chips.
+
+GN generated 36,683 targets and `gn check` passed for the location-bar
+target. The first single-job build caught an invalid legacy Browser method;
+after switching to `BrowserWindowInterface::GetType()`, the pinned Linux
+`chrome` build passed in 31.59 seconds (two actions). A final source change
+moved the chip fill from the shared color mixer into its own painter; the
+updated source compiled and linked by 2026-10-27 11:59 local time, and the
+2026-10-29 `autoninja -j1` check found zero pending actions. A real X11 click at the
+page-info chip opened Chromium's bubble, visible in
+`docs/evidence/prism-page-info-chip-bubble-dark-linux-20261027.png`.
+Reviewed light, forced-contrast and 500-pixel captures in the same evidence
+directory show a legible chip, narrow label clipping, and the system fallback
+without the Prism rim. Screenshot pixel samples found `#E3E3E3` text on
+`#344752` dark (7.54:1) and `#1F1F1F` text on `#E6F1F5` light (14.34:1).
+The 500-pixel Xvfb capture did not paint all page content, so it verifies the
+browser chrome only.
+
+Ordinary-page/Prism WebUI, F12/DevTools, native omnibox Clear all and native
+Back/Forward smokes passed again on the final binary on 2026-10-29. The prior location-bar Clear
+all hunks and the new chip were consolidated in
+`0012-prism-location-bar-controls.patch`; the patch checker reports all 18
+current patches already applied. Older report sections referring to patches
+`0018` and `0019` describe their original development history. Windows,
+touch, actual HTTPS security transitions, screen-reader announcements and
+the remaining complete native-chrome redesign stay **unverified**. The
+independent Windows build, real Store update and live OpenAI API gates remain
+open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,

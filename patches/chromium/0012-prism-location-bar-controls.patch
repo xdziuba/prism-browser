@@ -1,0 +1,173 @@
+diff --git a/chrome/browser/ui/views/location_bar/BUILD.gn b/chrome/browser/ui/views/location_bar/BUILD.gn
+index e7ede245ff..8b2a310ec1 100644
+--- a/chrome/browser/ui/views/location_bar/BUILD.gn
++++ b/chrome/browser/ui/views/location_bar/BUILD.gn
+@@ -108,6 +108,10 @@ source_set("impl") {
+       "zoom_bubble_view.cc",
+     ]
+ 
++    if (is_linux || is_win) {
++      sources += [ "//prism/ui/native/prism_omnibox_icons.h" ]
++    }
++
+     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+ 
+     deps += [
+@@ -207,6 +211,14 @@ source_set("impl") {
+       "//ui/native_theme",
+       "//ui/strings:ui_strings_grit",
+     ]
++    if (is_linux || is_win) {
++      sources += [
++        "//prism/ui/native/prism_location_icon_view.cc",
++        "//prism/ui/native/prism_location_icon_view.h",
++        "//prism/ui/native/prism_omnibox_clear_button.cc",
++        "//prism/ui/native/prism_omnibox_clear_button.h",
++      ]
++    }
+     if (is_mac) {
+       deps += [ "//chrome/browser/ui:fullscreen_util_mac" ]
+     }
+diff --git a/chrome/browser/ui/views/location_bar/location_bar_view.cc b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+index f6a4fded22..c7fac1e1d2 100644
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -95,6 +95,10 @@
+ #include "chrome/common/chrome_features.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "chrome/grit/omnibox_popup_resources.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_location_icon_view.h"
++#include "prism/ui/native/prism_omnibox_clear_button.h"
++#endif
+ #include "components/commerce/core/commerce_feature_list.h"
+ #include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/content_settings/core/common/features.h"
+@@ -121,6 +125,9 @@
+ #include "content/public/browser/render_widget_host_view.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_observer.h"
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++#include "prism/ui/native/prism_omnibox_icons.h"
++#endif
+ #include "services/device/public/cpp/device_features.h"
+ #include "third_party/metrics_proto/omnibox_event.pb.h"
+ #include "third_party/skia/include/core/SkColor.h"
+@@ -340,8 +347,19 @@ void LocationBarView::Init() {
+   const gfx::FontList& page_action_font_list = typography_provider.GetFont(
+       CONTEXT_OMNIBOX_PRIMARY, views::style::STYLE_BODY_3_EMPHASIS);
+ 
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  auto location_icon_view =
++      browser_ && browser_->GetType() == BrowserWindowInterface::TYPE_NORMAL &&
++              !is_popup_mode_
++          ? std::unique_ptr<LocationIconView>(
++                std::make_unique<PrismLocationIconView>(omnibox_chip_font_list,
++                                                        this, this))
++          : std::make_unique<LocationIconView>(omnibox_chip_font_list, this,
++                                               this);
++#else
+   auto location_icon_view =
+       std::make_unique<LocationIconView>(omnibox_chip_font_list, this, this);
++#endif
+   location_icon_view->set_drag_controller(this);
+   location_icon_view_ = AddChildView(std::move(location_icon_view));
+ 
+@@ -502,10 +520,17 @@ void LocationBarView::Init() {
+           page_action_items, page_actions::PageActionPropertiesProvider(),
+           page_action_params));
+ 
+-  auto clear_all_button = views::CreateVectorImageButton(base::BindRepeating(
++  auto clear_all_callback = base::BindRepeating(
+       static_cast<void (OmniboxView::*)(const std::u16string&)>(
+           &OmniboxView::SetUserText),
+-      base::Unretained(omnibox_view_), std::u16string()));
++      base::Unretained(omnibox_view_), std::u16string());
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  auto clear_all_button =
++      std::make_unique<PrismOmniboxClearButton>(std::move(clear_all_callback));
++#else
++  auto clear_all_button =
++      views::CreateVectorImageButton(std::move(clear_all_callback));
++#endif
+   clear_all_button->SetTooltipText(
+       l10n_util::GetStringUTF16(IDS_OMNIBOX_CLEAR_ALL));
+   clear_all_button_ = AddChildView(std::move(clear_all_button));
+@@ -1427,6 +1452,13 @@ void LocationBarView::RefreshBackground() {
+   }
+ 
+   SkColor border_color = SK_ColorTRANSPARENT;
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const SkColor toolbar_color = color_provider->GetColor(kColorToolbar);
++  const bool prism_dark_toolbar =
++      toolbar_color == SkColorSetRGB(0x2C, 0x39, 0x42);
++  const bool prism_light_toolbar =
++      toolbar_color == SkColorSetRGB(0xF5, 0xF9, 0xFB);
++#endif
+   if (high_contrast) {
+     // High contrast schemes get a border stroke even on a rounded omnibox.
+     border_color =
+@@ -1438,6 +1470,16 @@ void LocationBarView::RefreshBackground() {
+     // but still contains in-progress user input, a unique border color will be
+     // applied.
+     border_color = color_provider->GetColor(kColorLocationBarBorderOnMismatch);
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  } else if (!is_popup_mode_ && !is_caret_visible &&
++             ((prism_dark_toolbar &&
++               normal == SkColorSetRGB(0x20, 0x32, 0x3C)) ||
++              (prism_light_toolbar && normal == SK_ColorWHITE))) {
++    // An unfocused Prism capsule has one quiet material rim. Focus and
++    // mismatch borders continue to use Chromium's own visual feedback.
++    border_color = prism_dark_toolbar ? SkColorSetARGB(0xAA, 0x69, 0x87, 0x96)
++                                      : SkColorSetARGB(0xAA, 0xAD, 0xC3, 0xD0);
++#endif
+   }
+ 
+   if (is_popup_mode_) {
+@@ -1558,12 +1600,19 @@ void LocationBarView::RefreshPageActionContainerViewAndIconsVisibility(
+ 
+ void LocationBarView::RefreshClearAllButtonIcon() {
+   const bool touch_ui = ui::TouchUiController::Get()->touch_ui();
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  const gfx::VectorIcon& icon = touch_ui ? (features::IsRoundedIconsEnabled()
++                                                ? omnibox::kBackspaceFilledIcon
++                                                : omnibox::kClearOldIcon)
++                                         : prism::kOmniboxClearIcon;
++#else
+   const gfx::VectorIcon& icon = touch_ui ? features::IsRoundedIconsEnabled()
+                                                ? omnibox::kBackspaceFilledIcon
+                                                : omnibox::kClearOldIcon
+                                 : features::IsRoundedIconsEnabled()
+                                     ? kCloseIcon
+                                     : kTabCloseNormalOldIcon;
++#endif
+   SetImageFromVectorIconWithColor(
+       clear_all_button_, icon,
+       {kColorLocationBarClearAllButtonIcon,
+@@ -2058,11 +2107,17 @@ void LocationBarView::OnChanged() {
+ 
+   location_icon_view_->Update(
+       /*suppress_animations=*/false, GetOmniboxController()->IsPopupOpen());
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++  constexpr bool kShowClearWithoutVirtualKeyboard = true;
++#else
++  constexpr bool kShowClearWithoutVirtualKeyboard = false;
++#endif
+   clear_all_button_->SetVisible(
+       omnibox_view_ &&
+       GetOmniboxController()->edit_model()->user_input_in_progress() &&
+       !omnibox_view_->GetText().empty() &&
+-      IsVirtualKeyboardVisible(GetWidget()));
++      (kShowClearWithoutVirtualKeyboard ||
++       IsVirtualKeyboardVisible(GetWidget())));
+ 
+   InvalidateLayout();
+   SchedulePaint();
+@@ -2458,7 +2513,6 @@ void LocationBarView::OnAppShimChanged(const webapps::AppId& app_id) {
+ }
+ #endif
+ 
+-
+ BEGIN_METADATA(LocationBarView)
+ ADD_READONLY_PROPERTY_METADATA(int, BorderRadius)
+ ADD_READONLY_PROPERTY_METADATA(gfx::Point, OmniboxViewOrigin)
