@@ -1114,6 +1114,36 @@ behavior remain **unverified**. The independent Windows build, actual Store
 version transition, live OpenAI API call, and SponsorBlock distribution/API
 gates remain open.
 
+### Prism toolbar optical material — 2026-10-30
+
+`docs/design/native-toolbar-optical-material.md` records a whole-toolbar
+optical treatment for the ordinary Linux/Windows Prism palette. The existing
+Prism-owned `PrismNavigationRailBackground` now paints a clipped vertical
+light gradient and one top rim after Chromium's toolbar shape, before the
+navigation rail. It skips high contrast and Chromium's own glass-frame mode.
+No Chromium upstream file or patch changed. The surface remains opaque and
+does **not** provide actual backdrop blur or window transparency.
+
+`prism_navigation_rail_background.cc` compiled as one action in the pinned
+Linux toolbar target with `-j1` (20.13 seconds); the subsequent `chrome` link
+passed as one action (17.48 seconds). Isolated X11 captures before and after
+are `docs/evidence/prism-toolbar-material-{before,after}-{dark,light,forced-contrast}-linux-20261030.png`;
+`prism-toolbar-material-after-dark-narrow-linux-20261030.png` records a 700 px
+window. Visual review found the upper band and lower cool shade legible in
+both schemes with no narrow control overlap. The dark after capture was
+repeated after restarting Xvfb because an earlier capture did not paint page
+content. The retained images show the browser UI and ordinary page.
+
+At fixed screen pixel `(700, 42)`, the dark toolbar changed from `#2C3942`
+to `#46525A`, light from `#F5F9FB` to `#FCFDFE`; at `(700, 82)`, the
+new lower tones are `#2B3841` and `#EDF3F7`. In crop `(400, 40)`–`(900, 85)`,
+the forced-contrast before/after difference was zero pixels. The
+ordinary-page/Prism WebUI, F12/DevTools, native Back/Forward and tab-close
+smokes passed on the final binary. Windows appearance, custom theme variants,
+actual compositor blur, touch and screen-reader behavior remain unverified.
+Phase 0's Windows build, real Store update and live OpenAI call, plus the
+SponsorBlock distribution/API gates, remain open.
+
 ### Selected-tabs context preview — 2026-10-15
 
 `docs/design/selected-tabs-context-preview.md` records the native-selection,
