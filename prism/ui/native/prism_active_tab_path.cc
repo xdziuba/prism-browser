@@ -2,9 +2,14 @@
 
 #include <algorithm>
 
+#include "cc/paint/paint_flags.h"
+#include "cc/paint/paint_shader.h"
 #include "third_party/skia/include/core/SkMatrix.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
 #include "third_party/skia/include/core/SkRRect.h"
+#include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/rect.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 namespace {
 
@@ -59,4 +64,30 @@ SkPath MakePrismInactiveTabHighlightPath(const SkRect& bounds,
   return MakePrismTabSurfacePath(bounds, tab_origin, scale, render_in_dips,
                                  /*side_inset=*/2.0f, /*top_radius_dip=*/10.0f,
                                  /*bottom_radius_dip=*/8.0f);
+}
+
+void PaintPrismActiveTabMaterial(gfx::Canvas* canvas,
+                                 const gfx::Rect& bounds,
+                                 bool dark) {
+  if (bounds.IsEmpty()) {
+    return;
+  }
+
+  const SkPoint vertical[2] = {
+      SkPoint::Make(0, bounds.y()),
+      SkPoint::Make(0, bounds.bottom()),
+  };
+  const float stops[3] = {0.0f, 0.52f, 1.0f};
+  const SkColor4f colors[3] = {
+      SkColor4f::FromColor(dark ? SkColorSetARGB(0x2C, 0xFF, 0xFF, 0xFF)
+                                : SkColorSetARGB(0x80, 0xFF, 0xFF, 0xFF)),
+      SkColor4f::FromColor(dark ? SkColorSetARGB(0x0D, 0xC9, 0xDE, 0xE8)
+                                : SkColorSetARGB(0x18, 0xFF, 0xFF, 0xFF)),
+      SkColor4f::FromColor(dark ? SkColorSetARGB(0x0B, 0, 0, 0)
+                                : SkColorSetARGB(0x0B, 0x66, 0x91, 0xA7)),
+  };
+  cc::PaintFlags flags;
+  flags.setShader(cc::PaintShader::MakeLinearGradient(vertical, colors, stops,
+                                                      3, SkTileMode::kClamp));
+  canvas->DrawRect(gfx::RectF(bounds), flags);
 }

@@ -17,7 +17,7 @@ index 75e30c9bca..415169e916 100644
      "//base:i18n",
      "//cc/paint",
 diff --git a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
-index 5e8bf7705c..3baab02a68 100644
+index 5e8bf7705c..8e2e81a373 100644
 --- a/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 +++ b/chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc
 @@ -11,6 +11,7 @@
@@ -38,7 +38,15 @@ index 5e8bf7705c..3baab02a68 100644
  #include "third_party/skia/include/core/SkPath.h"
  #include "third_party/skia/include/core/SkPathBuilder.h"
  #include "third_party/skia/include/core/SkRRect.h"
-@@ -88,9 +92,42 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+@@ -36,6 +40,7 @@
+ #include "ui/gfx/geometry/insets.h"
+ #include "ui/gfx/geometry/skia_conversions.h"
+ #include "ui/gfx/scoped_canvas.h"
++#include "ui/native_theme/native_theme.h"
+ #include "ui/views/controls/separator.h"
+ #include "ui/views/widget/widget.h"
+ 
+@@ -88,9 +93,42 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
                                     tab_style()->GetSeparatorSize().width()) *
                                    scale;
  
@@ -82,7 +90,7 @@ index 5e8bf7705c..3baab02a68 100644
      float top_left_corner_radius = content_corner_radius;
      float top_right_corner_radius = content_corner_radius;
      float bottom_left_corner_radius = content_corner_radius;
-@@ -164,6 +201,22 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
+@@ -164,6 +202,22 @@ SkPath HorizontalTabStyleViews::GetPath(TabStyle::PathType path_type,
        }
      }
  
@@ -105,3 +113,34 @@ index 5e8bf7705c..3baab02a68 100644
      // Radii are clockwise from top left.
      const SkVector radii[4] = {
          SkVector(top_left_corner_radius, top_left_corner_radius),
+@@ -789,10 +843,26 @@ void HorizontalTabStyleViews::PaintTabBackgroundFill(
+     cc::PaintFlags flags;
+     flags.setAntiAlias(true);
+ 
+-    flags.setColor(GetCurrentTabBackgroundColor(selection_state, false));
+-    canvas->DrawRect(gfx::ScaleToEnclosingRect(
+-                         delegate_->GetView()->GetLocalBounds(), scale),
+-                     flags);
++    const SkColor fill_color =
++        GetCurrentTabBackgroundColor(selection_state, false);
++    flags.setColor(fill_color);
++    const gfx::Rect fill_bounds = gfx::ScaleToEnclosingRect(
++        delegate_->GetView()->GetLocalBounds(), scale);
++    canvas->DrawRect(fill_bounds, flags);
++
++#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
++    const bool prism_dark = fill_color == SkColorSetRGB(0x2C, 0x39, 0x42);
++    const bool prism_light = fill_color == SkColorSetRGB(0xF5, 0xF9, 0xFB);
++    if (selection_state == TabStyle::TabSelectionState::kActive &&
++        (prism_dark || prism_light) && !fill_id.has_value() &&
++        !delegate_->IsPinned() && !delegate_->IsSplit() &&
++        !delegate_->GetGroup().has_value() && !delegate_->IsClosing() &&
++        !delegate_->IsDragging() && !delegate_->IsGlassFrame() &&
++        delegate_->GetView()->GetNativeTheme()->preferred_contrast() !=
++            ui::NativeTheme::PreferredContrast::kMore) {
++      PaintPrismActiveTabMaterial(canvas, fill_bounds, prism_dark);
++    }
++#endif
+   }
+ 
+   if (fill_id.has_value()) {

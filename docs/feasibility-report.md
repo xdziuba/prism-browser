@@ -1141,6 +1141,61 @@ the forced-contrast before/after difference was zero pixels. The
 ordinary-page/Prism WebUI, F12/DevTools, native Back/Forward and tab-close
 smokes passed on the final binary. Windows appearance, custom theme variants,
 actual compositor blur, touch and screen-reader behavior remain unverified.
+
+### Prism active-tab material and blur feasibility — 2026-10-30
+
+`docs/design/native-active-tab-material.md` records the next Phase 1 slice
+under ADR 0002. The existing detached active tab now receives one clipped,
+low-opacity vertical light gradient from Prism-owned code after Chromium's
+normal fill. The guarded call in
+`chrome/browser/ui/views/tabs/common/horizontal_tab_style_views.cc` applies
+only to ordinary Linux/Windows Prism tabs. It keeps the existing hit path,
+stroke, icons, text, tab model, and special tab geometry. Custom fill images,
+dragging, closing, grouping, pinning, splitting, high contrast, and upstream
+GlassFrame skip the treatment. Patch `0011` was regenerated and all patches
+passed the idempotence check.
+
+On the current CachyOS Linux host, the Prism-owned path and modified tab
+source compiled in the horizontal-tab target with `-j1` (two C++ actions),
+and `chrome` relinked with `-j1` (one action, 16.05 seconds). `gn check` for
+the horizontal-tab target passed. The host did not have Xvfb installed, so
+an isolated headless Mutter/Xwayland display first established that the
+browser rendered. Its root window was not capturable; the capture script now
+falls back to the active browser window on rootless Xwayland. Mutter did not
+deliver XTest native input, so a 1.05 MiB Xvfb package was downloaded to
+`/tmp`, verified against the SHA-256 in the local package database
+(`8a2efda0...c21c80c9`), and extracted without system installation. The
+final captures and native input tests ran on that isolated Xvfb display.
+The captures
+are `docs/evidence/prism-active-tab-material-after-{dark,light,forced-contrast}-linux-20261030.png`
+and `prism-active-tab-material-after-dark-narrow-linux-20261030.png`. They
+show the upper active-tab light response in dark/light, legible controls and
+page text, a 700 px layout without tab overlap, and Chromium's flat
+forced-contrast styling. Playwright created, switched, and captured three
+tabs; `browser_smoke.py` passed the ordinary page and `chrome://prism-ai`.
+At an unobstructed active-tab pixel `(450, 12)`, the earlier Xvfb dark
+capture was `#2C3942` and the new one is `#3F4B54`; the lower tab stays
+close to its base color. The corresponding light tab has a quieter highlight.
+The native New Tab click, native Close click, and F12/DevTools smoke scripts
+all passed on Xvfb.
+
+The `native_new_tab_button_smoke.mjs` XTest click timed out, including with
+an adjusted horizontal coordinate, and `devtools_f12_smoke.mjs` did not see a
+DevTools target under headless Mutter. A CDP-sent F12 was also ineffective.
+The successful repeat on Xvfb attributes those earlier failures to the
+test display rather than the tab paint path. The old and new Xvfb captures
+use the same local tab geometry but different overall screen dimensions;
+the pixel sample above is evidence of the tab surface, not a full-frame
+visual regression comparison.
+Windows rendering, custom themes, touch, grouped/split tabs, and actual
+backdrop blur remain unverified.
+
+The pinned Chromium `features::IsGlassFrameEnabled()` hard returns false
+outside macOS 26+. Its built-in glass-frame switch cannot enable Linux or
+Windows blur. Generic layer blur is available, but the current horizontal
+browser chrome has no web content beneath it to sample. A separate
+platform-aware compositor/layout design is required before claiming real
+backdrop blur; the present surface is optical only.
 Phase 0's Windows build, real Store update and live OpenAI call, plus the
 SponsorBlock distribution/API gates, remain open.
 

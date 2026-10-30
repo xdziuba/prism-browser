@@ -119,11 +119,25 @@ x11.XCloseDisplay(d)
     throw new Error('PRISM_NATIVE_CAPTURE_WAIT_MS must be 0–15000');
   }
   await page.waitForTimeout(captureWait);
-  const result = spawnSync('import', [
+  let result = spawnSync('import', [
     '-display', display, '-window', 'root', screenshotPath,
   ], { encoding: 'utf8' });
   if (result.status !== 0) {
-    throw new Error(result.stderr || `import exited ${result.status}`);
+    // Rootless Xwayland has no capturable root window. Capture the focused
+    // browser window instead when the compositor exposes its X11 window ID.
+    const active = spawnSync('xprop', [
+      '-display', display, '-root', '_NET_ACTIVE_WINDOW',
+    ], { encoding: 'utf8' });
+    const windowId = active.stdout?.match(/window id # (0x[0-9a-f]+)/i)?.[1];
+    if (!windowId || windowId === '0x0') {
+      throw new Error(result.stderr || `import exited ${result.status}`);
+    }
+    result = spawnSync('import', [
+      '-display', display, '-window', windowId, screenshotPath,
+    ], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      throw new Error(result.stderr || `import exited ${result.status}`);
+    }
   }
   console.log(`Captured ${mode} browser chrome at ${width}px: ${screenshotPath}`);
 } finally {
