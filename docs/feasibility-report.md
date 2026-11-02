@@ -1362,3 +1362,25 @@ editable values, and hidden content. `selected_tabs_preview_smoke.mjs` and
 verify the exact outbound request body, a successful model response, summary
 quality, arbitrary-site extraction, or the live OpenAI Phase 0 gate. Windows
 remains unverified.
+
+## Question about the active page — 2026-11-02
+
+`docs/design/phase2-page-question.md` extends the explicit read path with
+**Ask about page** beside Send in the native panel. A question is limited to
+2 KiB, kept in the composer if the page read fails, and cleared only after a
+fresh bounded context is dispatched. The browser process rejects internal
+pages, missing sessions, overlapping reads, changed navigation, and an empty
+or oversized question. It uses the same read-only Responses turn as the
+summary action; ordinary Send still follows the existing chat/tool path. No
+upstream Chromium file changed.
+
+The final pinned Linux `chrome` incremental build passed with `-j1` in 10.83
+seconds (one C++ compile and one link). On isolated X11 display `:103`, the
+updated `page_summary_smoke.mjs` passed the oversized-question refusal,
+internal-page refusal with composer preservation, local synthetic-page
+question dispatch and composer clearing, summary dispatch, and expected
+offline failures using an invalid key and unavailable API host. The panel
+reported no horizontal overflow. `page_context_preview_smoke.mjs` and
+`side_panel_smoke.mjs` passed after the new UI was added. A live OpenAI answer,
+exact outbound body inspection, arbitrary-site answers, Windows rendering,
+and the independent Phase 0 gates remain **unverified**.

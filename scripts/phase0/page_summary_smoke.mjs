@@ -98,6 +98,30 @@ try {
   if (await evaluate("document.querySelector('#messages').textContent.includes('Summarize the active page')")) {
     throw new Error('Summary began without the button press');
   }
+  await evaluate("chrome.send('prismAskPage', ['a'.repeat(2049)])");
+  await waitFor(() => evaluate("document.querySelector('#page-preview-status').textContent.includes('at most 2 KiB')"), 'question size refusal');
+  await evaluate("document.querySelector('#prompt').value = 'How many moons does Mars have?'");
+  await page.goto('chrome://version/');
+  await evaluate("document.querySelector('#ask-page').click()");
+  await waitFor(() => evaluate("document.querySelector('#page-preview-status').textContent.includes('Open an HTTP')"), 'internal-page question refusal');
+  if (!(await evaluate("document.querySelector('#prompt').value.includes('How many moons')"))) {
+    throw new Error('Rejected page question was lost');
+  }
+  await page.goto(origin);
+  const width = await evaluate('({viewport: innerWidth, scroll: document.documentElement.scrollWidth})');
+  if (width.scroll > width.viewport) throw new Error('Page question controls overflow the panel');
+  if (process.env.PRISM_PAGE_QUESTION_SCREENSHOT) {
+    execFileSync('import', ['-window', 'root', process.env.PRISM_PAGE_QUESTION_SCREENSHOT]);
+  }
+  await evaluate("document.querySelector('#ask-page').click()");
+  await waitFor(() => evaluate("document.querySelector('#page-preview-status').textContent === 'Page question sent.'"), 'page question dispatch');
+  const question = await evaluate("({message: document.querySelector('#messages').textContent, composer: document.querySelector('#prompt').value})");
+  if (!question.message.includes('How many moons does Mars have?') || question.composer) {
+    throw new Error(`Page question UI state incorrect: ${JSON.stringify(question)}`);
+  }
+  await waitFor(() => evaluate("!document.querySelector('#setup').hidden"), 'offline question failure');
+  await evaluate("document.querySelector('#api-key').value = 'synthetic-invalid-key'; document.querySelector('#start-form').requestSubmit()");
+  await waitFor(() => evaluate("!document.querySelector('#summarize-page').disabled"), 'second session');
   await page.goto('chrome://version/');
   await evaluate("document.querySelector('#summarize-page').click()");
   await waitFor(() => evaluate("document.querySelector('#page-preview-status').textContent.includes('Open an HTTP')"), 'internal-page refusal');
@@ -111,11 +135,10 @@ try {
   if (!state.message.includes('Summarize the active page') || state.preview.includes('synthetic-secret-123') || !state.busy) {
     throw new Error(`Summary UI state incorrect: ${JSON.stringify(state)}`);
   }
-  await waitFor(() => evaluate("document.querySelector('#messages').textContent.includes('OpenAI request failed')"), 'offline model failure');
-  await evaluate("document.querySelector('#stop').click()");
+  await waitFor(() => evaluate("!document.querySelector('#setup').hidden"), 'offline summary failure');
   await page.goto('chrome://version/');
   await waitFor(() => evaluate("document.querySelector('#summarize-page').disabled"), 'inactive session');
-  console.log('PASS: explicit summary dispatch, session gating, offline failure and stop');
+  console.log('PASS: explicit summary and page question dispatch, session gating, internal-page refusals, offline failures');
 } finally {
   socket?.close();
   await context?.close();
