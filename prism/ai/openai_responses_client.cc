@@ -159,7 +159,7 @@ bool OpenAIResponsesClient::SendReadOnlyMessage(std::string text,
   message.Set("content", std::move(text));
   base::ListValue input;
   input.Append(std::move(message));
-  return StartRequest(std::move(input), std::move(completion), false);
+  return StartRequest(std::move(input), std::move(completion), false, false);
 }
 
 bool OpenAIResponsesClient::SendFunctionOutput(std::string call_id,
@@ -194,12 +194,14 @@ bool OpenAIResponsesClient::SendFunctionOutputs(
 
 bool OpenAIResponsesClient::StartRequest(base::ListValue pending_items,
                                          Completion completion,
-                                         bool allow_tools) {
+                                         bool allow_tools,
+                                         bool include_history) {
   if (model_.empty() || api_key_.empty() || loader_ || completion_ ||
-      history_.size() + pending_items.size() >= kMaxHistoryItems) {
+      (include_history &&
+       history_.size() + pending_items.size() >= kMaxHistoryItems)) {
     return false;
   }
-  base::ListValue input = history_.Clone();
+  base::ListValue input = include_history ? history_.Clone() : base::ListValue();
   for (const base::Value& item : pending_items) {
     input.Append(item.Clone());
   }
@@ -240,6 +242,7 @@ bool OpenAIResponsesClient::StartRequest(base::ListValue pending_items,
   loader_->AttachStringForUpload(*body, "application/json");
   pending_items_ = std::move(pending_items);
   completion_ = std::move(completion);
+  record_history_ = include_history;
   loader_->DownloadToString(loader_factory_.get(),
                             base::BindOnce(&OpenAIResponsesClient::OnLoaded,
                                            weak_factory_.GetWeakPtr()),
@@ -261,13 +264,16 @@ void OpenAIResponsesClient::OnLoaded(std::optional<std::string> body) {
       std::optional<ModelTurn> turn = ParseTurn(parsed->GetDict());
       const base::ListValue* output = parsed->GetDict().FindList("output");
       if (turn && output &&
-          history_.size() + pending_items_.size() + output->size() <=
-              kMaxHistoryItems) {
-        for (const base::Value& item : pending_items_) {
-          history_.Append(item.Clone());
-        }
-        for (const base::Value& item : *output) {
-          history_.Append(item.Clone());
+          (!record_history_ ||
+           history_.size() + pending_items_.size() + output->size() <=
+               kMaxHistoryItems)) {
+        if (record_history_) {
+          for (const base::Value& item : pending_items_) {
+            history_.Append(item.Clone());
+          }
+          for (const base::Value& item : *output) {
+            history_.Append(item.Clone());
+          }
         }
         result.status = ModelResultStatus::kCompleted;
         result.turn = std::move(*turn);
@@ -275,6 +281,7 @@ void OpenAIResponsesClient::OnLoaded(std::optional<std::string> body) {
     }
   }
   pending_items_.clear();
+  record_history_ = false;
   Completion completion = std::move(completion_);
   if (completion) {
     std::move(completion).Run(std::move(result));
@@ -284,6 +291,7 @@ void OpenAIResponsesClient::OnLoaded(std::optional<std::string> body) {
 void OpenAIResponsesClient::Stop() {
   weak_factory_.InvalidateWeakPtrs();
   loader_.reset();
+  record_history_ = false;
   model_.clear();
   std::fill(api_key_.begin(), api_key_.end(), '\0');
   api_key_.clear();

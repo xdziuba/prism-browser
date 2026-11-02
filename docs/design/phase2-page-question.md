@@ -9,8 +9,10 @@ The browser checks the tab and navigation again immediately before dispatch.
 The question is limited to 2 KiB and the page text to 16 KiB. The request
 labels the page text as untrusted, asks the model to answer from that text,
 and states when context is partial. It uses the read-only Responses turn
-introduced for page summaries, so no browser tools are offered. A normal
-Send action keeps its existing chat and permission behavior.
+introduced for page summaries, so no browser tools or prior conversation
+history are offered. Its result is shown in the panel without being retained
+in model history. A normal Send action keeps its existing chat and permission
+behavior.
 
 The question stays in the composer if extraction fails. On successful
 dispatch, the panel clears it, shows the user's question in the conversation,

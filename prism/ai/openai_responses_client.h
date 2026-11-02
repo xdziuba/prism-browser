@@ -62,7 +62,8 @@ class OpenAIResponsesClient {
  private:
   bool StartRequest(base::ListValue pending_items,
                     Completion completion,
-                    bool allow_tools = true);
+                    bool allow_tools = true,
+                    bool include_history = true);
   void OnLoaded(std::optional<std::string> body);
 
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
@@ -72,6 +73,7 @@ class OpenAIResponsesClient {
   base::ListValue history_;
   base::ListValue pending_items_;
   Completion completion_;
+  bool record_history_ = false;
   base::WeakPtrFactory<OpenAIResponsesClient> weak_factory_{this};
 };
 

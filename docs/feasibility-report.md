@@ -1384,3 +1384,13 @@ reported no horizontal overflow. `page_context_preview_smoke.mjs` and
 `side_panel_smoke.mjs` passed after the new UI was added. A live OpenAI answer,
 exact outbound body inspection, arbitrary-site answers, Windows rendering,
 and the independent Phase 0 gates remain **unverified**.
+
+The security follow-up isolates both read-only actions from ordinary chat
+history. The Responses request for a page summary or question now includes
+only that action's fresh user input, and its result is not appended to the
+model conversation history. The ordinary Send path retains its existing
+history and tools. The pinned Linux `chrome` target rebuilt with `-j1` in
+18.69 seconds (three C++ compiles and one link), and the combined
+`page_summary_smoke.mjs` passed again on isolated X11 display `:104`.
+Because the test uses an unavailable API host, the exact outbound JSON and a
+successful live response remain unverified.

@@ -10,9 +10,10 @@ The request contains at most 16 KiB of the already redacted visible text and a
 bounded origin. It labels the text as untrusted and asks for a concise summary
 with an explicit partial-context caveat when needed. It is sent only after the
 user presses the action. A read-only model turn omits browser tools; any
-unexpected tool call in its response fails the turn. The next ordinary chat
-turn can use the normal scoped tool broker again. Stop Agent and panel closure
-cancel both extraction and any in-flight model request.
+unexpected tool call in its response fails the turn. The request also omits
+earlier conversation history and does not append its result to model history.
+The next ordinary chat turn can use the normal scoped tool broker again. Stop
+Agent and panel closure cancel both extraction and any in-flight model request.
 
 The browser must refuse Incognito, internal URLs, missing/empty snapshots,
 changed navigation, a missing session, and overlapping requests. No page text,
