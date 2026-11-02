@@ -39,13 +39,20 @@ try {
       '--no-sandbox', '--disable-gpu', '--ozone-platform=x11',
       `--window-size=${width},900`, '--window-position=0,0',
       '--no-first-run', '--no-default-browser-check',
+      ...(process.env.PRISM_NATIVE_ORGANIZER === '1' ?
+        ['--enable-features=OrganizerPanel'] : []),
       ...(process.env.PRISM_NATIVE_RTL === '1' ? ['--force-ui-direction=rtl'] : []),
       ...(mode === 'forced-contrast' ? ['--force-high-contrast'] : []),
     ],
     viewport: null,
   });
   const page = browser.pages()[0] ?? await browser.newPage();
-  await page.goto('data:text/html,<title>Prism UI preview</title><body style="margin:0;background:white;font:32px sans-serif;padding:80px">Prism browser UI</body>');
+  if (process.env.PRISM_NATIVE_CHECKER === '1') {
+    const checker = '<title>Prism glass probe</title><body style="margin:0;height:200vh;background:repeating-conic-gradient(#fff 0% 25%,#111 0% 50%) 0 0/12px 12px;font:32px sans-serif;color:red;padding:80px">Prism glass probe</body>';
+    await page.goto(`data:text/html,${encodeURIComponent(checker)}`);
+  } else {
+    await page.goto('data:text/html,<title>Prism UI preview</title><body style="margin:0;background:white;font:32px sans-serif;padding:80px">Prism browser UI</body>');
+  }
   if (process.env.PRISM_NATIVE_TAB_SET === '1') {
     const second = await browser.newPage();
     await second.goto('data:text/html,<title>Second page</title><body>Second page</body>');

@@ -1302,3 +1302,37 @@ are **unverified** for this follow-up. The full Phase 0 gates remain open.
 - `scripts/phase0/devtools_f12_smoke.mjs`, `extension_ui_install.mjs`, `store_compat.mjs`, `dnr_smoke.mjs`, and `extension_update_smoke.mjs` passed on the built pinned browser on 2026-10-10. The X11 scripts used isolated display `:100`; the DNR script compared a local served script with and without its MV3 fixture. The update test checked the fetched feed and CRX, version change, storage, and restart. No second Chromium build was started.
 
 No AI key was written to disk. The OpenAI probe reads `OPENAI_API_KEY` only at invocation and requests `store=false`. A binary now exists, but no same-revision upstream baseline or AI-on measurement has been collected, so no performance claim is made.
+
+## Native toolbar material — 2026-11-02
+
+`docs/design/native-organizer-glass-probe.md` records a rejected blur path.
+With Chromium's `OrganizerPanel` enabled, an isolated Xvfb checkerboard
+capture showed the page beginning at x=320, immediately after the 320 px
+organizer tray. The tray has no page pixels behind it in that layout. An
+experimental blur/opacity change compiled but was removed before commit;
+GN regeneration and a two-action single-job `chrome` relink restored the
+binary. No compositor or browser backdrop-blur test was accepted as passed.
+The reproducible geometry capture is
+`docs/evidence/prism-organizer-no-backdrop-linux-20261102.png`.
+
+`docs/design/native-floating-toolbar.md` records the next Prism-owned top
+chrome slice. The toolbar now paints an inset rounded capsule over the frame
+color, with one tonal gradient, edge, and top highlight. It preserves the
+native control layout and keeps the old background for forced contrast,
+non-Prism themes, and reduced transparency. No Chromium upstream file was
+changed. `autoninja -j1 -C out/PrismFeasibility chrome` passed in 17.13 s
+with one toolbar compile and one browser link action. Dark, light,
+forced-contrast, and 700 px dark captures were reviewed. In a 750×7 px top
+strip, 3,750 pixels changed in dark and light; zero changed in forced
+contrast. The four screenshots are under `docs/evidence/` with prefix
+`prism-floating-toolbar-` and date `20261102`.
+
+On the relinked Linux binary, `browser_smoke.py` passed ordinary-page and
+Prism WebUI loading, `devtools_f12_smoke.mjs` opened standard DevTools, and
+`native_navigation_button_smoke.mjs` passed native Back/Forward clicks and
+keyboard navigation. The treatment is **optical glass only**: the top
+toolbar still has no page content behind it to sample. Windows appearance,
+OS-driven reduced transparency, inactive-window colors, custom themes, and
+actual backdrop blur are **unverified**. Phase 0 Windows, real Store update,
+and live OpenAI call gates remain open, as do SponsorBlock distribution/API
+and built-in adblock efficacy gates.

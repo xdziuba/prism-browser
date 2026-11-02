@@ -8,21 +8,27 @@
 #include "prism/ui/native/prism_navigation_rail.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/ui_base_features.h"
+#include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
+#include "ui/color/color_provider_key.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/native_theme/native_theme.h"
+#include "ui/views/widget/widget.h"
 
 namespace {
 
-void PaintPrismToolbarMaterial(const PrismNavigationRailBackground& background,
-                               const views::View& view,
-                               gfx::Canvas* canvas) {
-  const ui::ColorProvider* colors = view.GetColorProvider();
+void PaintPrismToolbarMaterial(const PrismNavigationRailBackground &background,
+                               const views::View &view, gfx::Canvas *canvas) {
+  const ui::ColorProvider *colors = view.GetColorProvider();
   if (!background.is_visible() || !colors || features::IsGlassFrameEnabled() ||
-      view.GetNativeTheme()->preferred_contrast() ==
-          ui::NativeTheme::PreferredContrast::kMore ||
+      !view.GetNativeTheme() ||
+      view.GetNativeTheme()->preferred_contrast() !=
+          ui::NativeTheme::PreferredContrast::kNoPreference ||
+      view.GetNativeTheme()->prefers_reduced_transparency() ||
+      view.GetNativeTheme()->forced_colors() !=
+          ui::ColorProviderKey::ForcedColors::kNone ||
       view.height() < 24) {
     return;
   }
@@ -37,24 +43,51 @@ void PaintPrismToolbarMaterial(const PrismNavigationRailBackground& background,
   gfx::ScopedCanvas scope(canvas);
   canvas->ClipPath(background.GetBackgroundPath(), true);
 
-  const SkPoint vertical[2] = {SkPoint::Make(0, 0),
-                               SkPoint::Make(0, view.height())};
-  const float vertical_stops[3] = {0.0f, 0.48f, 1.0f};
+  const bool active =
+      !view.GetWidget() || view.GetWidget()->ShouldPaintAsActive();
+  cc::PaintFlags frame;
+  frame.setColor(colors->GetColor(active ? ui::kColorFrameActive
+                                         : ui::kColorFrameInactive));
+  canvas->DrawRect(gfx::RectF(view.GetLocalBounds()), frame);
+
+  const gfx::RectF capsule(4.0f, 3.0f, view.width() - 8.0f,
+                           view.height() - 8.0f);
+  constexpr float kCapsuleRadius = 15.0f;
+  cc::PaintFlags shadow;
+  shadow.setAntiAlias(true);
+  shadow.setColor(dark ? SkColorSetARGB(0x68, 0x0A, 0x16, 0x1D)
+                       : SkColorSetARGB(0x36, 0x68, 0x84, 0x91));
+  gfx::RectF shadow_bounds = capsule;
+  shadow_bounds.Offset(0, 1.0f);
+  canvas->DrawRoundRect(shadow_bounds, kCapsuleRadius, shadow);
+
+  const SkPoint vertical[2] = {SkPoint::Make(0, capsule.y()),
+                               SkPoint::Make(0, capsule.bottom())};
+  const float vertical_stops[3] = {0.0f, 0.42f, 1.0f};
   const SkColor4f surface[3] = {
-      SkColor4f::FromColor(dark ? SkColorSetARGB(0x24, 0xFF, 0xFF, 0xFF)
-                                : SkColorSetARGB(0xD0, 0xFF, 0xFF, 0xFF)),
-      SkColor4f::FromColor(dark ? SkColorSetARGB(0x09, 0xB8, 0xD4, 0xE1)
-                                : SkColorSetARGB(0x18, 0xFF, 0xFF, 0xFF)),
-      SkColor4f::FromColor(dark ? SkColorSetARGB(0x0E, 0, 0, 0)
-                                : SkColorSetARGB(0x12, 0x6F, 0x9E, 0xB9)),
+      SkColor4f::FromColor(dark ? SkColorSetRGB(0x44, 0x55, 0x60)
+                                : SkColorSetRGB(0xFF, 0xFF, 0xFF)),
+      SkColor4f::FromColor(dark ? SkColorSetRGB(0x34, 0x44, 0x4E)
+                                : SkColorSetRGB(0xF5, 0xF9, 0xFB)),
+      SkColor4f::FromColor(dark ? SkColorSetRGB(0x29, 0x38, 0x42)
+                                : SkColorSetRGB(0xE4, 0xEE, 0xF3)),
   };
   cc::PaintFlags flags;
+  flags.setAntiAlias(true);
   flags.setShader(cc::PaintShader::MakeLinearGradient(
       vertical, surface, vertical_stops, 3, SkTileMode::kClamp));
-  canvas->DrawRect(gfx::RectF(view.GetLocalBounds()), flags);
+  canvas->DrawRoundRect(capsule, kCapsuleRadius, flags);
 
-  const SkPoint horizontal[2] = {SkPoint::Make(0, 0),
-                                 SkPoint::Make(view.width(), 0)};
+  cc::PaintFlags edge;
+  edge.setAntiAlias(true);
+  edge.setStyle(cc::PaintFlags::kStroke_Style);
+  edge.setStrokeWidth(1.0f);
+  edge.setColor(dark ? SkColorSetARGB(0x78, 0xA7, 0xC0, 0xCC)
+                     : SkColorSetARGB(0xA0, 0xB0, 0xC6, 0xD0));
+  canvas->DrawRoundRect(capsule, kCapsuleRadius, edge);
+
+  const SkPoint horizontal[2] = {SkPoint::Make(capsule.x(), 0),
+                                 SkPoint::Make(capsule.right(), 0)};
   const float rim_stops[3] = {0.0f, 0.42f, 1.0f};
   const SkColor4f rim[3] = {
       SkColor4f::FromColor(SkColorSetARGB(0, 0xFF, 0xFF, 0xFF)),
@@ -64,31 +97,31 @@ void PaintPrismToolbarMaterial(const PrismNavigationRailBackground& background,
   };
   flags.setShader(cc::PaintShader::MakeLinearGradient(
       horizontal, rim, rim_stops, 3, SkTileMode::kClamp));
-  canvas->DrawRect(gfx::RectF(0, 0, view.width(), 1.0f), flags);
+  canvas->DrawRoundRect(
+      gfx::RectF(capsule.x() + 1, capsule.y() + 1, capsule.width() - 2, 1),
+      0.5f, flags);
 }
 
-}  // namespace
+} // namespace
 
 PrismNavigationRailBackground::PrismNavigationRailBackground(
-    ToolbarView& toolbar,
-    BrowserView& browser_view)
-    : CustomCornersBackground(toolbar,
-                              browser_view,
+    ToolbarView &toolbar, BrowserView &browser_view)
+    : CustomCornersBackground(toolbar, browser_view,
                               CustomCornersBackground::ToolbarTheme(),
                               CustomCornersBackground::FrameTheme()) {}
 
 PrismNavigationRailBackground::~PrismNavigationRailBackground() = default;
 
-void PrismNavigationRailBackground::SetButtons(ToolbarButton* back,
-                                               ToolbarButton* forward,
-                                               ToolbarButton* reload) {
+void PrismNavigationRailBackground::SetButtons(ToolbarButton *back,
+                                               ToolbarButton *forward,
+                                               ToolbarButton *reload) {
   back_ = back;
   forward_ = forward;
   reload_ = reload;
 }
 
-void PrismNavigationRailBackground::Paint(gfx::Canvas* canvas,
-                                          views::View* view) const {
+void PrismNavigationRailBackground::Paint(gfx::Canvas *canvas,
+                                          views::View *view) const {
   CustomCornersBackground::Paint(canvas, view);
   PaintPrismToolbarMaterial(*this, *view, canvas);
   PaintPrismNavigationRail(*view, back_, forward_, reload_, canvas);
