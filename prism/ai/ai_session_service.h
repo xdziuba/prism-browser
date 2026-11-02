@@ -51,6 +51,7 @@ class AiSessionService {
   void Grant(Capability capability);
   void Revoke(Capability capability);
   bool SendUserMessage(std::string text);
+  bool SendReadOnlyMessage(std::string text);
   bool Approve(std::uint64_t action_id);
   bool Reject(std::uint64_t action_id);
   void Stop();
@@ -84,6 +85,7 @@ class AiSessionService {
   std::uint64_t waiting_action_id_ = 0;
   std::size_t next_call_index_ = 0;
   std::size_t total_calls_ = 0;
+  bool read_only_turn_ = false;
   base::WeakPtrFactory<AiSessionService> weak_factory_{this};
 };
 

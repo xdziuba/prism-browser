@@ -1336,3 +1336,29 @@ OS-driven reduced transparency, inactive-window colors, custom themes, and
 actual backdrop blur are **unverified**. Phase 0 Windows, real Store update,
 and live OpenAI call gates remain open, as do SponsorBlock distribution/API
 and built-in adblock efficacy gates.
+
+## Explicit active-page summary — 2026-11-02
+
+`docs/design/phase2-page-summary.md` records a Phase 2 read-mode action in the
+native Prism AI panel. After the user starts a model session and presses
+**Summarize active page**, the browser takes a fresh brokered accessibility
+snapshot of the current HTTP(S) tab, checks its committed navigation and
+active-tab identity again, limits the redacted visible text to 16 KiB, and
+builds the model prompt in the browser process. The read-only Responses turn
+omits browser tools and rejects any unexpected tool call before showing its
+text. The UI discloses that this action sends readable page text to OpenAI;
+the separate local preview does not send it. No upstream Chromium file changed.
+
+The pinned Linux `chrome` target compiled and relinked with `-j1`; the final
+incremental build passed in 15.00 seconds (one C++ compile and one link).
+On isolated X11 display `:102`, `page_summary_smoke.mjs` passed session gating,
+no dispatch before the button press, refusal on `chrome://version/`, dispatch
+from a local synthetic HTTP page, UI busy state, expected offline request
+failure, and Stop. The test used a synthetic invalid key and a host-resolver
+rule making `api.openai.com` unavailable. `page_context_preview_smoke.mjs`
+passed redaction of synthetic inline keys, Authorization and Cookie lines,
+editable values, and hidden content. `selected_tabs_preview_smoke.mjs` and
+`side_panel_smoke.mjs` also passed on the relinked binary. This does **not**
+verify the exact outbound request body, a successful model response, summary
+quality, arbitrary-site extraction, or the live OpenAI Phase 0 gate. Windows
+remains unverified.

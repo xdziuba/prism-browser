@@ -50,7 +50,8 @@ inline constexpr char kPrismAiHtml[] = R"PRISM(<!doctype html>
       <section id="page-preview" class="page-preview" hidden aria-labelledby="page-preview-title">
         <div class="section-heading"><h2 id="page-preview-title">Page context</h2><span>Local preview</span></div>
         <p class="hint">Review text Prism can read locally. Ctrl-click two or three tabs to preview them together.</p>
-        <div class="page-preview-actions"><button id="preview-page" type="button">Preview active page</button><button id="preview-tabs" type="button">Preview selected tabs</button></div>
+        <div class="page-preview-actions"><button id="preview-page" type="button">Preview active page</button><button id="preview-tabs" type="button">Preview selected tabs</button><button id="summarize-page" type="button" disabled>Summarize active page</button></div>
+        <p class="hint">Summarize sends the readable, redacted page text to OpenAI after you press the button.</p>
         <p id="page-preview-status" class="hint" role="status"></p>
         <pre id="page-preview-text" class="page-preview-text" hidden></pre>
       </section>
@@ -128,6 +129,7 @@ function showView(focusHeading = false) {
   $('setup').hidden = settings || sessionActive;
   $('workspace').hidden = settings || !sessionActive;
   $('page-preview').hidden = settings || location.host !== 'prism-ai-panel';
+  $('summarize-page').disabled = !sessionActive || busy;
   $('nav-settings').setAttribute('aria-current', settings ? 'page' : 'false');
   $('nav-assistant').setAttribute('aria-current', settings ? 'false' : 'page');
   document.title = settings ? 'Prism AI · Settings' : 'Prism AI';
@@ -210,6 +212,7 @@ function setBusy(value) {
   busy = value;
   $('send').disabled = value;
   $('prompt').disabled = value;
+  $('summarize-page').disabled = value || !sessionActive;
   $('session-state').textContent = value ? 'Working' : 'Ready';
 }
 
@@ -270,6 +273,7 @@ addWebUiListener('prism-audit', renderAudit);
 addWebUiListener('prism-page-preview', (result) => {
   $('preview-page').disabled = false;
   $('preview-tabs').disabled = false;
+  $('summarize-page').disabled = busy || !sessionActive;
   $('page-preview-text').hidden = !result.ok;
   $('page-preview-text').textContent = result.ok ? result.text : '';
   $('page-preview-status').textContent = result.ok
@@ -279,6 +283,7 @@ addWebUiListener('prism-page-preview', (result) => {
 function requestPreview(message, status) {
   $('preview-page').disabled = true;
   $('preview-tabs').disabled = true;
+  $('summarize-page').disabled = true;
   $('page-preview-text').hidden = true;
   $('page-preview-text').textContent = '';
   $('page-preview-status').textContent = status;
@@ -288,6 +293,15 @@ $('preview-page').addEventListener('click', () =>
   requestPreview('prismPreviewPage', 'Reading the active page…'));
 $('preview-tabs').addEventListener('click', () =>
   requestPreview('prismPreviewSelectedTabs', 'Reading selected tabs…'));
+$('summarize-page').addEventListener('click', () =>
+  requestPreview('prismSummarizePage', 'Reading the active page for summary…'));
+addWebUiListener('prism-summary-started', () => {
+  $('preview-page').disabled = false;
+  $('preview-tabs').disabled = false;
+  $('page-preview-status').textContent = 'Summary request sent.';
+  addMessage('user', 'Summarize the active page');
+  setBusy(true);
+});
 addWebUiListener('prism-credential', (message) => {
   $('credential-status').textContent = message;
   $('storage-status').textContent = message;
@@ -300,6 +314,7 @@ addWebUiListener('prism-started', (ok) => {
   }
   sessionActive = true;
   showView();
+  setBusy(false);
   $('stop').disabled = false;
   $('session-model').textContent = $('model').value.trim();
   $('prompt').focus();

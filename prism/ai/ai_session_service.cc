@@ -92,6 +92,28 @@ bool AiSessionService::SendUserMessage(std::string text) {
     return false;
   }
   state_ = State::kRequesting;
+  read_only_turn_ = false;
+  return true;
+}
+
+bool AiSessionService::SendReadOnlyMessage(std::string text) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (state_ != State::kReady) {
+    return false;
+  }
+  if (!browser_ || browser_->IsDeleteScheduled() ||
+      browser_->GetProfile()->IsOffTheRecord()) {
+    Stop();
+    return false;
+  }
+  if (!client_.SendReadOnlyMessage(
+          std::move(text),
+          base::BindOnce(&AiSessionService::OnModelResult,
+                         weak_factory_.GetWeakPtr()))) {
+    return false;
+  }
+  read_only_turn_ = true;
+  state_ = State::kRequesting;
   return true;
 }
 
@@ -124,6 +146,7 @@ void AiSessionService::Stop() {
   current_call_.reset();
   waiting_action_id_ = 0;
   next_call_index_ = 0;
+  read_only_turn_ = false;
   Emit({AiSessionEventKind::kStopped, ""});
 }
 
@@ -140,6 +163,10 @@ void AiSessionService::OnModelResult(ModelResult result) {
     Fail("OpenAI request failed or returned an invalid response.");
     return;
   }
+  if (read_only_turn_ && !result.turn.calls.empty()) {
+    Fail("A read-only summary attempted a browser action.");
+    return;
+  }
   if (!result.turn.text.empty()) {
     base::WeakPtr<AiSessionService> alive = weak_factory_.GetWeakPtr();
     Emit({AiSessionEventKind::kAssistantText, std::move(result.turn.text)});
@@ -151,6 +178,7 @@ void AiSessionService::OnModelResult(ModelResult result) {
     return;
   }
   calls_ = std::move(result.turn.calls);
+  read_only_turn_ = false;
   outputs_.clear();
   next_call_index_ = 0;
   if (calls_.empty()) {

@@ -51,6 +51,7 @@ class OpenAIResponsesClient {
 
   bool BeginTask(std::string model, std::string transient_api_key);
   bool SendUserMessage(std::string text, Completion completion);
+  bool SendReadOnlyMessage(std::string text, Completion completion);
   bool SendFunctionOutput(std::string call_id,
                           std::string output_json,
                           Completion completion);
@@ -59,7 +60,9 @@ class OpenAIResponsesClient {
   void Stop();
 
  private:
-  bool StartRequest(base::ListValue pending_items, Completion completion);
+  bool StartRequest(base::ListValue pending_items,
+                    Completion completion,
+                    bool allow_tools = true);
   void OnLoaded(std::optional<std::string> body);
 
   scoped_refptr<network::SharedURLLoaderFactory> loader_factory_;
