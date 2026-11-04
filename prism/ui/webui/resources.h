@@ -55,6 +55,13 @@ inline constexpr char kPrismAiHtml[] = R"PRISM(<!doctype html>
         <p id="page-preview-status" class="hint" role="status"></p>
         <pre id="page-preview-text" class="page-preview-text" hidden></pre>
       </section>
+      <section id="console-triage" class="page-preview" hidden aria-labelledby="console-triage-title">
+        <div class="section-heading"><h2 id="console-triage-title">Console triage</h2><span>Developer read mode</span></div>
+        <p class="hint">Capture warnings and errors from the active page, then reproduce the issue. Prism keeps only severity, a fixed error category, and line number. Use F12 for full messages.</p>
+        <div class="page-preview-actions"><button id="capture-console" type="button" disabled>Start console capture</button><button id="analyze-console" type="button" disabled>Analyze captured events</button></div>
+        <p id="console-status" class="hint" role="status"></p>
+        <pre id="console-digest" class="page-preview-text" hidden></pre>
+      </section>
       <section id="setup" class="setup" aria-labelledby="setup-title">
         <p class="eyebrow">SESSION SETUP</p>
         <h1 id="setup-title" tabindex="-1">Work with your browser.</h1>
@@ -120,6 +127,7 @@ const $ = (id) => document.getElementById(id);
 let pendingAction = null;
 let busy = false;
 let sessionActive = false;
+let consoleCapturing = false;
 const stateNames = ['submitted','denied','awaiting approval','started','completed','failed','cancellation requested','cancelled'];
 const reasonNames = ['none','AI disabled','Incognito','capability not granted','invalid target','redaction unavailable','sensitive target','approval required','user rejected','stopped','browser failure','unknown action'];
 
@@ -129,8 +137,11 @@ function showView(focusHeading = false) {
   $('setup').hidden = settings || sessionActive;
   $('workspace').hidden = settings || !sessionActive;
   $('page-preview').hidden = settings || location.host !== 'prism-ai-panel';
+  $('console-triage').hidden = settings || location.host !== 'prism-ai-panel';
   $('summarize-page').disabled = !sessionActive || busy;
   $('ask-page').disabled = !sessionActive || busy;
+  $('capture-console').disabled = !sessionActive || busy;
+  $('analyze-console').disabled = !sessionActive || busy || !consoleCapturing;
   $('nav-settings').setAttribute('aria-current', settings ? 'page' : 'false');
   $('nav-assistant').setAttribute('aria-current', settings ? 'false' : 'page');
   document.title = settings ? 'Prism AI · Settings' : 'Prism AI';
@@ -215,6 +226,8 @@ function setBusy(value) {
   $('prompt').disabled = value;
   $('summarize-page').disabled = value || !sessionActive;
   $('ask-page').disabled = value || !sessionActive;
+  $('capture-console').disabled = value || !sessionActive;
+  $('analyze-console').disabled = value || !sessionActive || !consoleCapturing;
   $('session-state').textContent = value ? 'Working' : 'Ready';
 }
 
@@ -255,6 +268,12 @@ function onEvent(event) {
     $('approve').focus();
     $('session-state').textContent = 'Awaiting approval';
   } else if (event.kind === 'stopped') {
+    if (consoleCapturing) {
+      $('console-status').textContent = 'Capture stopped with the session.';
+    }
+    consoleCapturing = false;
+    $('console-digest').hidden = true;
+    $('console-digest').textContent = '';
     pendingAction = null;
     $('approval').hidden = true;
     $('stop').disabled = true;
@@ -326,6 +345,32 @@ addWebUiListener('prism-page-question-started', () => {
   pendingPageQuestion = '';
   $('prompt').value = '';
   setBusy(true);
+});
+addWebUiListener('prism-console-capture', (result) => {
+  $('console-status').textContent = result.status ||
+      (result.sent ? 'Console metadata sent for analysis.' : 'Capture ready.');
+  if (result.sent) {
+    consoleCapturing = false;
+    $('console-digest').textContent = result.digest;
+    $('console-digest').hidden = false;
+    addMessage('user', 'Analyze captured console metadata');
+    setBusy(true);
+  } else if (result.capturing) {
+    consoleCapturing = true;
+    $('console-digest').hidden = true;
+    $('console-digest').textContent = '';
+  } else {
+    consoleCapturing = false;
+  }
+  setBusy(busy);
+});
+$('capture-console').addEventListener('click', () => {
+  $('console-status').textContent = 'Starting capture…';
+  chrome.send('prismStartConsoleCapture');
+});
+$('analyze-console').addEventListener('click', () => {
+  $('console-status').textContent = 'Reading captured metadata…';
+  chrome.send('prismAnalyzeConsole');
 });
 addWebUiListener('prism-credential', (message) => {
   $('credential-status').textContent = message;

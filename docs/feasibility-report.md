@@ -1394,3 +1394,38 @@ history and tools. The pinned Linux `chrome` target rebuilt with `-j1` in
 `page_summary_smoke.mjs` passed again on isolated X11 display `:104`.
 Because the test uses an unavailable API host, the exact outbound JSON and a
 successful live response remain unverified.
+
+## Native top-chrome glass milestone — 2026-11-02
+
+`docs/design/native-top-chrome-backdrop.md` records the next Phase 1 UI
+decision. The current toolbar is an opaque optical treatment; the pinned
+browser's normal layout provides no page pixels behind it. The next gate is a
+real compositor and geometry proof of bounded background blur over a native
+browser-owned backdrop, followed by a solid accessibility fallback. No
+runtime blur, Windows appearance, or page-overlap behavior has been claimed
+as verified by this design note.
+
+## Phase 2 console triage — 2026-11-04
+
+`docs/design/phase2-console-triage.md` defines an explicit two-step developer
+read mode. The panel observes warnings and errors from the current HTTP(S)
+tab after Start capture, keeps only fixed severity/category and bounded line
+numbers for up to 100 events, and sends the metadata to a stateless read-only
+model turn only after Analyze. Capture expires on top-level navigation, tab
+destruction, panel hide, or session stop; Analyze rejects a different active
+tab. Full messages remain in F12.
+No upstream Chromium file changed.
+
+The host `console_digest_test` passed with `-Wall -Wextra -Werror`, covering
+classification, line bounds, event cap, and rejection of synthetic secrets.
+GN generation and `gn check` for `//prism/ai:chromium` and
+`//prism/ui/webui:prism_ai_ui` passed. The pinned Linux `chrome` target built
+with `-j1` after the final source change (one WebUI compile and one link,
+16.88 seconds). On isolated X11 display `:106`,
+`console_triage_smoke.mjs` passed real `console.warn`/`console.error` capture,
+fixed digest content, absence of a synthetic secret, explicit dispatch,
+offline failure, session-stop clearing, and navigation invalidation.
+`page_summary_smoke.mjs` and `devtools_f12_smoke.mjs` passed on this build.
+The API host was deliberately unavailable with a synthetic invalid key;
+successful model analysis, exact outbound JSON, arbitrary-site console
+behavior, Windows, and the independent Phase 0 gates remain **unverified**.
